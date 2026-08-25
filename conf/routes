@@ -1,0 +1,6 @@
+# *key captures everything including slashes, so keys may contain '/' without URL-encoding.
+# Query params: ?ifVersion=<long> (takes precedence over If-Match header)
+
+GET     /kv/*key        controllers.KvController.get(key: String)
+PUT     /kv/*key        controllers.KvController.put(key: String)
+PATCH   /kv/*key        controllers.KvController.patch(key: String)
