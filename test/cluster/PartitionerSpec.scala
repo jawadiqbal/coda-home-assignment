@@ -38,7 +38,7 @@ class PartitionerSpec extends AnyWordSpec with Matchers {
     "distribute 10 000 keys roughly evenly across 3 nodes" in {
       val partitioner = new ModuloPartitioner(threeNodeRegistry())
       val keys        = (0 until 10000).map(i => s"key-$i")
-      val counts      = keys.groupBy(partitioner.ownerOf(_).id).view.mapValues(_.size).toMap
+      val counts      = keys.groupBy(partitioner.ownerOf(_).id).mapValues(_.size)
 
       val n         = 3
       val perNode   = 10000 / n

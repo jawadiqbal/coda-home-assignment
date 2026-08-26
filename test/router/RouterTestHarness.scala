@@ -1,17 +1,13 @@
 package router
 
-import cluster.{NodeRef, NodeRegistry}
 import org.scalatestplus.play.PlaySpec
-import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.Application
-import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.WSClient
-import play.api.test.{TestServer, WsTestClient}
-import play.api.test.Helpers.{await, defaultAwaitTimeout}
+import play.api.test.TestServer
+import play.api.test.Helpers.await
 
 import java.net.ServerSocket
-import scala.util.Random
 
 /** Provides withCluster(nodeCount) { (routerUrl, nodeUrls) => ... }
   *

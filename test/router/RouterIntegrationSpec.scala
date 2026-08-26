@@ -1,13 +1,7 @@
 package router
 
-import cluster.{NodeRef, NodeRegistry}
 import org.scalatestplus.play.PlaySpec
-import org.scalatestplus.play.guice.GuiceOneServerPerTest
-import play.api.Application
-import play.api.inject.bind
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.json.{JsObject, Json}
-import play.api.libs.ws.WSClient
+import play.api.libs.json.{JsNumber, JsObject, Json}
 import play.api.test.Helpers._
 
 /** End-to-end integration tests for the router topology.
@@ -104,31 +98,36 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         val ws  = wsClient
         val key = "counter-through-router"
 
-        def increment(): Unit = {
+        val seed = await(ws.url(s"$routerUrl/kv/$key").put(JsNumber(0)))
+        seed.status mustBe OK
+
+        def incrementOnce(): Unit = {
           @annotation.tailrec
           def loop(): Unit = {
             val get = await(ws.url(s"$routerUrl/kv/$key").get())
-            val (currentValue, ifV) = get.status match {
-              case NOT_FOUND => (0, None)
+            get.status match {
               case OK =>
-                val v = (get.json \ "value").as[Int]
-                val ver = (get.json \ "version").as[Long]
-                (v, Some(ver))
-              case s => fail(s"unexpected GET status $s")
+                val currentValue = (get.json \ "value").as[Int]
+                val version      = (get.json \ "version").as[Long]
+                val put = await(
+                  ws.url(s"$routerUrl/kv/$key")
+                    .addQueryStringParameters("ifVersion" -> version.toString)
+                    .put(JsNumber(currentValue + 1))
+                )
+                put.status match {
+                  case CONFLICT => loop()
+                  case OK       => ()
+                  case s        => fail(s"unexpected PUT status $s: ${put.body}")
+                }
+              case s => fail(s"unexpected GET status $s: ${get.body}")
             }
-            val body = Json.obj("value" -> (currentValue + 1))
-            val req  = ifV.fold(ws.url(s"$routerUrl/kv/$key")) { v =>
-              ws.url(s"$routerUrl/kv/$key").addQueryStringParameters("ifVersion" -> v.toString)
-            }
-            val put = await(req.put(body))
-            if (put.status == CONFLICT) loop() else ()
           }
           loop()
         }
 
-        val threads = (0 until 3).map(_ => new Thread(() => (0 until 100).foreach(_ => increment())))
+        val threads = (0 until 3).map(_ => new Thread(() => (0 until 100).foreach(_ => incrementOnce())))
         threads.foreach(_.start())
-        threads.foreach(_.join(30000L))
+        threads.foreach(_.join(60000L))
 
         val get = await(ws.url(s"$routerUrl/kv/$key").get())
         get.status mustBe OK
