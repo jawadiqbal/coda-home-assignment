@@ -20,8 +20,8 @@ import play.api.mvc._
 class KvDispatcher @Inject() (@Named("kvHandler") handler: KvHandler)
     extends InjectedController {
 
-  def get(key: String): Action[AnyContent]  = handler.get(key)
-  def put(key: String): Action[JsValue]     = handler.put(key)
-  def patch(key: String): Action[JsValue]   = handler.patch(key)
-  def listAll(): Action[AnyContent]         = handler.listAll()
+  def get(key: String): Action[AnyContent] = handler.get(key)
+  def put(key: String): Action[JsValue] = handler.put(key)
+  def patch(key: String): Action[JsValue] = handler.patch(key)
+  def listAll(): Action[AnyContent] = handler.listAll()
 }

@@ -33,7 +33,9 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
       withCluster(nodeCount = 2) { (routerUrl, _) =>
         val ws = wsClient
 
-        val put = await(ws.url(s"$routerUrl/kv/hello").put(Json.obj("greeting" -> "world")))
+        val put = await(
+          ws.url(s"$routerUrl/kv/hello").put(Json.obj("greeting" -> "world"))
+        )
         put.status mustBe OK
 
         val get = await(ws.url(s"$routerUrl/kv/hello").get())
@@ -59,7 +61,9 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         val ws = wsClient
 
         await(ws.url(s"$routerUrl/kv/pkey").put(Json.obj("a" -> 1, "b" -> 2)))
-        await(ws.url(s"$routerUrl/kv/pkey").patch(Json.obj("b" -> 99, "c" -> 3)))
+        await(
+          ws.url(s"$routerUrl/kv/pkey").patch(Json.obj("b" -> 99, "c" -> 3))
+        )
 
         val get = await(ws.url(s"$routerUrl/kv/pkey").get())
         get.status mustBe OK
@@ -93,9 +97,88 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         keys.foreach { k => returnedKeys must contain(k) }
       }
 
+    "return 400 for a non-numeric ifVersion on PUT through the router" in
+      withCluster(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        val result = await(
+          ws.url(s"$routerUrl/kv/badver")
+            .addQueryStringParameters("ifVersion" -> "not-a-number")
+            .put(Json.obj("x" -> 1))
+        )
+        result.status mustBe BAD_REQUEST
+        (result.json \ "error").as[String] must include("invalid ifVersion")
+      }
+
+    "return 400 for a non-numeric ifVersion on PATCH through the router" in
+      withCluster(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        val result = await(
+          ws.url(s"$routerUrl/kv/badver")
+            .addQueryStringParameters("ifVersion" -> "abc")
+            .patch(Json.obj("x" -> 1))
+        )
+        result.status mustBe BAD_REQUEST
+        (result.json \ "error").as[String] must include("invalid ifVersion")
+      }
+
+    "forward If-Match header as ifVersion on PUT through the router" in
+      withCluster(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        await(ws.url(s"$routerUrl/kv/hkey").put(Json.obj("v" -> 1)))
+        val result = await(
+          ws.url(s"$routerUrl/kv/hkey")
+            .addHttpHeaders("If-Match" -> "1")
+            .put(Json.obj("v" -> 2))
+        )
+        result.status mustBe OK
+        (result.json \ "version").as[Long] mustBe 2L
+      }
+
+    "forward If-Match header as ifVersion on PATCH through the router" in
+      withCluster(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        await(ws.url(s"$routerUrl/kv/matchkey").put(Json.obj("a" -> 1)))
+        val result = await(
+          ws.url(s"$routerUrl/kv/matchkey")
+            .addHttpHeaders("If-Match" -> "1")
+            .patch(Json.obj("b" -> 2))
+        )
+        result.status mustBe OK
+        (result.json \ "version").as[Long] mustBe 2L
+
+        val get = await(ws.url(s"$routerUrl/kv/matchkey").get())
+        val v = (get.json \ "value").as[JsObject]
+        (v \ "a").as[Int] mustBe 1
+        (v \ "b").as[Int] mustBe 2
+      }
+
+    "return 503 when the node is unreachable" in
+      withClusterAndDeadNode(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        val get = await(ws.url(s"$routerUrl/kv/any").get())
+        get.status mustBe SERVICE_UNAVAILABLE
+        (get.json \ "error").as[String] mustBe "node unavailable"
+      }
+
+    "return 503 on PUT when the node is unreachable" in
+      withClusterAndDeadNode(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        val put = await(ws.url(s"$routerUrl/kv/any").put(Json.obj("x" -> 1)))
+        put.status mustBe SERVICE_UNAVAILABLE
+        (put.json \ "error").as[String] mustBe "node unavailable"
+      }
+
+    "wrap a non-JSON node response under a 'raw' key" in
+      withPlainTextNode(statusCode = 200, textBody = "not json at all") {
+        routerUrl =>
+          val ws = wsClient
+          val get = await(ws.url(s"$routerUrl/kv/any").get())
+          (get.json \ "raw").asOpt[String] mustBe defined
+      }
+
     "reach exactly 300 after 3×100 concurrent increments through the router" in
       withCluster(nodeCount = 2) { (routerUrl, _) =>
-        val ws  = wsClient
+        val ws = wsClient
         val key = "counter-through-router"
 
         val seed = await(ws.url(s"$routerUrl/kv/$key").put(JsNumber(0)))
@@ -108,7 +191,7 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
             get.status match {
               case OK =>
                 val currentValue = (get.json \ "value").as[Int]
-                val version      = (get.json \ "version").as[Long]
+                val version = (get.json \ "version").as[Long]
                 val put = await(
                   ws.url(s"$routerUrl/kv/$key")
                     .addQueryStringParameters("ifVersion" -> version.toString)
@@ -125,7 +208,9 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
           loop()
         }
 
-        val threads = (0 until 3).map(_ => new Thread(() => (0 until 100).foreach(_ => incrementOnce())))
+        val threads = (0 until 3).map(_ =>
+          new Thread(() => (0 until 100).foreach(_ => incrementOnce()))
+        )
         threads.foreach(_.start())
         threads.foreach(_.join(60000L))
 

@@ -28,8 +28,8 @@ class PartitionerSpec extends AnyWordSpec with Matchers {
 
     "deterministically route the same key to the same node" in {
       val partitioner = new ModuloPartitioner(threeNodeRegistry())
-      val key         = "some-deterministic-key"
-      val first       = partitioner.ownerOf(key)
+      val key = "some-deterministic-key"
+      val first = partitioner.ownerOf(key)
       (1 to 100).foreach { _ =>
         partitioner.ownerOf(key) mustBe first
       }
@@ -37,11 +37,11 @@ class PartitionerSpec extends AnyWordSpec with Matchers {
 
     "distribute 10 000 keys roughly evenly across 3 nodes" in {
       val partitioner = new ModuloPartitioner(threeNodeRegistry())
-      val keys        = (0 until 10000).map(i => s"key-$i")
-      val counts      = keys.groupBy(partitioner.ownerOf(_).id).mapValues(_.size)
+      val keys = (0 until 10000).map(i => s"key-$i")
+      val counts = keys.groupBy(partitioner.ownerOf(_).id).mapValues(_.size)
 
-      val n         = 3
-      val perNode   = 10000 / n
+      val n = 3
+      val perNode = 10000 / n
       val tolerance = (perNode * 0.30).toInt
       counts.values.foreach { c =>
         c mustBe >=(perNode - tolerance)
@@ -50,7 +50,8 @@ class PartitionerSpec extends AnyWordSpec with Matchers {
     }
 
     "route all keys to the single node in a 1-node cluster" in {
-      val registry    = NodeRegistry.forTest(NodeRef("only-node", "http://localhost:7001"))
+      val registry =
+        NodeRegistry.forTest(NodeRef("only-node", "http://localhost:7001"))
       val partitioner = new ModuloPartitioner(registry)
       (0 until 100).foreach { i =>
         partitioner.ownerOf(s"key-$i").id mustBe "only-node"

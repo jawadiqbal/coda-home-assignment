@@ -21,14 +21,17 @@ import scala.util.Try
   */
 @Singleton
 class KvController @Inject() (store: KvStore, cc: ControllerComponents)
-    extends AbstractController(cc) with KvHandler {
+    extends AbstractController(cc)
+    with KvHandler {
 
   /** Not part of the node's public API; a node process should never receive
     * a bare GET /kv.  Routers talk to /internal/keys instead.
     * Returning 501 here surfaces a misconfiguration quickly.
     */
   def listAll(): Action[AnyContent] = Action {
-    NotImplemented(Json.obj("error" -> "listAll is only available on a router process"))
+    NotImplemented(
+      Json.obj("error" -> "listAll is only available on a router process")
+    )
   }
 
   def get(key: String): Action[AnyContent] = Action {

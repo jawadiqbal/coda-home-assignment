@@ -14,7 +14,7 @@ import scala.util.control.NonFatal
 
 /** Stateless router process.
   *
-  * For every PUT/PATCH/GET /kv/*key it:
+  * For every PUT/PATCH/GET /kv/key it:
   *   1. Computes the owning node via ModuloPartitioner.
   *   2. Forwards the request over HTTP using RemoteNodeClient.
   *   3. Relays the node's status code and body unchanged.
@@ -39,7 +39,8 @@ class RouterController @Inject() (
     client: RemoteNodeClient,
     cc: ControllerComponents
 )(implicit ec: ExecutionContext)
-    extends AbstractController(cc) with KvHandler {
+    extends AbstractController(cc)
+    with KvHandler {
 
   // ------------------------------------------------------------------ routing
 
@@ -49,29 +50,33 @@ class RouterController @Inject() (
   }
 
   def put(key: String): Action[JsValue] = Action.async(parse.json) { request =>
-    val node    = partitioner.ownerOf(key)
-    val ifV     = parseIfVersion(request.getQueryString("ifVersion"))
+    val node = partitioner.ownerOf(key)
+    val ifV = parseIfVersion(request.getQueryString("ifVersion"))
     val ifMatch = request.headers.get("If-Match")
     ifV match {
       case Left(err) => Future.successful(BadRequest(Json.obj("error" -> err)))
       case Right(parsed) =>
-        client.put(node, key, request.body, parsed, ifMatch)
+        client
+          .put(node, key, request.body, parsed, ifMatch)
           .map(relayResponse)
           .recover(nodeDown)
     }
   }
 
-  def patch(key: String): Action[JsValue] = Action.async(parse.json) { request =>
-    val node    = partitioner.ownerOf(key)
-    val ifV     = parseIfVersion(request.getQueryString("ifVersion"))
-    val ifMatch = request.headers.get("If-Match")
-    ifV match {
-      case Left(err) => Future.successful(BadRequest(Json.obj("error" -> err)))
-      case Right(parsed) =>
-        client.patch(node, key, request.body, parsed, ifMatch)
-          .map(relayResponse)
-          .recover(nodeDown)
-    }
+  def patch(key: String): Action[JsValue] = Action.async(parse.json) {
+    request =>
+      val node = partitioner.ownerOf(key)
+      val ifV = parseIfVersion(request.getQueryString("ifVersion"))
+      val ifMatch = request.headers.get("If-Match")
+      ifV match {
+        case Left(err) =>
+          Future.successful(BadRequest(Json.obj("error" -> err)))
+        case Right(parsed) =>
+          client
+            .patch(node, key, request.body, parsed, ifMatch)
+            .map(relayResponse)
+            .recover(nodeDown)
+      }
   }
 
   // ------------------------------------------------------------------ fan-out
@@ -100,17 +105,18 @@ class RouterController @Inject() (
     * does not abort the whole merged stream.
     */
   private def streamKeysFrom(node: cluster.NodeRef): Source[ByteString, _] =
-    Source.futureSource(
-      client.streamKeys(node).map(_.bodyAsSource)
-    )
-    .via(
-      Framing.delimiter(
-        ByteString("\n"),
-        maximumFrameLength = 8192,
-        allowTruncation    = true
+    Source
+      .futureSource(
+        client.streamKeys(node).map(_.bodyAsSource)
       )
-    )
-    .map(_ ++ ByteString("\n"))
+      .via(
+        Framing.delimiter(
+          ByteString("\n"),
+          maximumFrameLength = 8192,
+          allowTruncation = true
+        )
+      )
+      .map(_ ++ ByteString("\n"))
 
   /** Relays the node's HTTP status code and JSON body to the original client.
     * Non-JSON node responses (should not happen in practice) pass as plain text.
@@ -131,9 +137,11 @@ class RouterController @Inject() (
   /** Parses the ifVersion string.
     * Returns Right(None) when absent, Right(Some(v)) when valid, Left(msg) on bad input.
     */
-  private def parseIfVersion(raw: Option[String]): Either[String, Option[Long]] =
+  private def parseIfVersion(
+      raw: Option[String]
+  ): Either[String, Option[Long]] =
     raw match {
-      case None    => Right(None)
+      case None => Right(None)
       case Some(s) =>
         Try(s.toLong).toOption match {
           case Some(v) => Right(Some(v))

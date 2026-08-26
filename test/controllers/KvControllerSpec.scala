@@ -12,6 +12,18 @@ import play.api.test.Helpers._
   */
 class KvControllerSpec extends PlaySpec with GuiceOneAppPerTest {
 
+  // ---- GET /kv (no key) --------------------------------------------------
+
+  "GET /kv" should {
+    "return 501 on a node process (listAll is router-only)" in {
+      val result = route(app, FakeRequest(GET, "/kv")).value
+      status(result) mustBe NOT_IMPLEMENTED
+      (contentAsJson(result) \ "error").as[String] must include(
+        "router process"
+      )
+    }
+  }
+
   // ---- GET ----------------------------------------------------------------
 
   "GET /kv/:key" should {

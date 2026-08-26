@@ -5,7 +5,12 @@ import akka.util.ByteString
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import play.api.libs.json.Json
-import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
+import play.api.mvc.{
+  AbstractController,
+  Action,
+  AnyContent,
+  ControllerComponents
+}
 import store.KvStore
 
 /** Node-side internal endpoint, called only by the router (or tests).

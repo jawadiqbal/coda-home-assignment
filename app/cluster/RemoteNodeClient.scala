@@ -35,8 +35,10 @@ class RemoteNodeClient @Inject() (ws: WSClient)(implicit ec: ExecutionContext) {
     var req = ws.url(s"${node.url}/kv/$key").withRequestTimeout(timeout)
     // Forward ifVersion as query param (preferred) or If-Match header
     ifVersion match {
-      case Some(v) => req = req.addQueryStringParameters("ifVersion" -> v.toString)
-      case None    => ifMatchHeader.foreach(h => req = req.addHttpHeaders("If-Match" -> h))
+      case Some(v) =>
+        req = req.addQueryStringParameters("ifVersion" -> v.toString)
+      case None =>
+        ifMatchHeader.foreach(h => req = req.addHttpHeaders("If-Match" -> h))
     }
     req.withHttpHeaders("Content-Type" -> "application/json").put(body)
   }
@@ -50,8 +52,10 @@ class RemoteNodeClient @Inject() (ws: WSClient)(implicit ec: ExecutionContext) {
   ): Future[WSResponse] = {
     var req = ws.url(s"${node.url}/kv/$key").withRequestTimeout(timeout)
     ifVersion match {
-      case Some(v) => req = req.addQueryStringParameters("ifVersion" -> v.toString)
-      case None    => ifMatchHeader.foreach(h => req = req.addHttpHeaders("If-Match" -> h))
+      case Some(v) =>
+        req = req.addQueryStringParameters("ifVersion" -> v.toString)
+      case None =>
+        ifMatchHeader.foreach(h => req = req.addHttpHeaders("If-Match" -> h))
     }
     req.withHttpHeaders("Content-Type" -> "application/json").patch(body)
   }

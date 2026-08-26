@@ -7,7 +7,9 @@ import play.api.libs.ws.WSClient
 import play.api.test.TestServer
 import play.api.test.Helpers.await
 
-import java.net.ServerSocket
+import java.io.PrintWriter
+import java.net.{ServerSocket, Socket}
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Provides withCluster(nodeCount) { (routerUrl, nodeUrls) => ... }
   *
@@ -32,22 +34,23 @@ trait RouterTestHarness { self: PlaySpec =>
 
   def withCluster(nodeCount: Int)(body: (String, Seq[String]) => Unit): Unit = {
     val nodePorts = (0 until nodeCount).map(_ => freePort())
-    val nodeUrls  = nodePorts.map(p => s"http://localhost:$p")
+    val nodeUrls = nodePorts.map(p => s"http://localhost:$p")
 
     // Build node apps — all use the default (node) role
-    val nodeApps: Seq[TestServer] = nodePorts.zipWithIndex.map { case (port, i) =>
-      val nodeId = s"node-${i + 1}"
-      val app = new GuiceApplicationBuilder()
-        .configure(
-          "kv.role"                       -> "node",
-          "kv.nodeId"                     -> nodeId,
-          "kv.nodes"                      -> nodeUrls.zipWithIndex.map { case (url, j) =>
-            Map("id" -> s"node-${j + 1}", "url" -> url)
-          },
-          "play.http.parser.maxMemoryBuffer" -> "10m"
-        )
-        .build()
-      TestServer(port, app)
+    val nodeApps: Seq[TestServer] = nodePorts.zipWithIndex.map {
+      case (port, i) =>
+        val nodeId = s"node-${i + 1}"
+        val app = new GuiceApplicationBuilder()
+          .configure(
+            "kv.role" -> "node",
+            "kv.nodeId" -> nodeId,
+            "kv.nodes" -> nodeUrls.zipWithIndex.map { case (url, j) =>
+              Map("id" -> s"node-${j + 1}", "url" -> url)
+            },
+            "play.http.parser.maxMemoryBuffer" -> "10m"
+          )
+          .build()
+        TestServer(port, app)
     }
     nodeApps.foreach(_.start())
 
@@ -58,9 +61,9 @@ trait RouterTestHarness { self: PlaySpec =>
     }
     val routerApp: Application = new GuiceApplicationBuilder()
       .configure(
-        "kv.role"   -> "router",
+        "kv.role" -> "router",
         "kv.nodeId" -> "router",
-        "kv.nodes"  -> routerNodes,
+        "kv.nodes" -> routerNodes,
         "play.http.parser.maxMemoryBuffer" -> "10m"
       )
       .build()
@@ -77,8 +80,106 @@ trait RouterTestHarness { self: PlaySpec =>
     }
   }
 
+  /** Starts a router pointing at nodeCount real nodes, then also gives back a
+    * URL for an unreachable node that is NOT in the cluster — used to test 503.
+    * The unreachable URL's port is reserved but never bound, so any connection
+    * attempt fails immediately with "connection refused".
+    */
+  def withClusterAndDeadNode(nodeCount: Int)(
+      body: (String, String) => Unit
+  ): Unit = {
+    val deadPort = freePort() // port is freed immediately; nothing will bind it
+    val deadUrl = s"http://localhost:$deadPort"
+
+    // Build a 1-node router that only points at the dead URL, so every proxied
+    // request hits the nodeDown path.
+    val routerPort = freePort()
+    val routerApp: Application = new GuiceApplicationBuilder()
+      .configure(
+        "kv.role" -> "router",
+        "kv.nodeId" -> "router",
+        "kv.nodes" -> Seq(Map("id" -> "dead-node", "url" -> deadUrl)),
+        "play.http.parser.maxMemoryBuffer" -> "10m"
+      )
+      .build()
+    val routerServer = TestServer(routerPort, routerApp)
+    routerServer.start()
+    _wsClient = routerApp.injector.instanceOf[WSClient]
+
+    try {
+      body(s"http://localhost:$routerPort", deadUrl)
+    } finally {
+      routerServer.stop()
+    }
+  }
+
+  /** Starts a minimal raw TCP server that accepts one HTTP connection and
+    * responds with a fixed plain-text body (not JSON).  Used to exercise the
+    * relayResponse non-JSON fallback path.
+    *
+    * Returns the URL and a shutdown handle.
+    */
+  def withPlainTextNode(statusCode: Int, textBody: String)(
+      body: String => Unit
+  ): Unit = {
+    val ss = new ServerSocket(0)
+    val port = ss.getLocalPort
+    val running = new AtomicBoolean(true)
+
+    val acceptThread = new Thread(() => {
+      while (running.get()) {
+        try {
+          val conn: Socket = ss.accept()
+          val out = new PrintWriter(conn.getOutputStream, true)
+          // Read and discard the request so the client doesn't get a broken pipe
+          val in = conn.getInputStream
+          val buf = new Array[Byte](4096)
+          while (in.available() > 0) in.read(buf)
+          // Respond with non-JSON plain text
+          out.print(s"HTTP/1.1 $statusCode OK\r\n")
+          out.print("Content-Type: text/plain\r\n")
+          out.print(s"Content-Length: ${textBody.length}\r\n")
+          out.print("Connection: close\r\n")
+          out.print("\r\n")
+          out.print(textBody)
+          out.flush()
+          conn.close()
+        } catch {
+          case _: Exception => // socket closed on shutdown
+        }
+      }
+    })
+    acceptThread.setDaemon(true)
+    acceptThread.start()
+
+    // Build a router pointing at the plain-text TCP server
+    val routerPort = freePort()
+    val routerApp: Application = new GuiceApplicationBuilder()
+      .configure(
+        "kv.role" -> "router",
+        "kv.nodeId" -> "router",
+        "kv.nodes" -> Seq(
+          Map("id" -> "plain-node", "url" -> s"http://localhost:$port")
+        ),
+        "play.http.parser.maxMemoryBuffer" -> "10m"
+      )
+      .build()
+    val routerServer = TestServer(routerPort, routerApp)
+    routerServer.start()
+    _wsClient = routerApp.injector.instanceOf[WSClient]
+
+    try {
+      body(s"http://localhost:$routerPort")
+    } finally {
+      routerServer.stop()
+      running.set(false)
+      ss.close()
+    }
+  }
+
   private def freePort(): Int = {
     val s = new ServerSocket(0)
-    try s.getLocalPort finally s.close()
+    try s.getLocalPort
+    finally s.close()
   }
 }

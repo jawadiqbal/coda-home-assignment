@@ -29,7 +29,7 @@ class NodeRegistry @Inject() (config: Configuration) {
     val raw = config.get[Seq[Configuration]]("kv.nodes")
     raw.map { c =>
       NodeRef(
-        id  = c.get[String]("id"),
+        id = c.get[String]("id"),
         url = c.get[String]("url").stripSuffix("/")
       )
     }
@@ -39,6 +39,7 @@ class NodeRegistry @Inject() (config: Configuration) {
 }
 
 object NodeRegistry {
+
   /** Convenience factory for tests — avoids needing a real Configuration. */
   def forTest(refs: NodeRef*): NodeRegistry = {
     // Build a minimal in-memory Configuration that satisfies the @Inject constructor.
@@ -47,11 +48,15 @@ object NodeRegistry {
     import scala.collection.JavaConverters._
     import play.api.Configuration
 
-    val nodeList = refs.map { r =>
-      Map("id" -> r.id, "url" -> r.url).asJava
-    }.toList.asJava
+    val nodeList = refs
+      .map { r =>
+        Map("id" -> r.id, "url" -> r.url).asJava
+      }
+      .toList
+      .asJava
 
-    val raw = ConfigFactory.empty()
+    val raw = ConfigFactory
+      .empty()
       .withValue("kv.nodes", ConfigValueFactory.fromIterable(nodeList))
     new NodeRegistry(Configuration(raw))
   }
