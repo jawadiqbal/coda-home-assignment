@@ -8,12 +8,10 @@ import store.KvStore
 
 import scala.util.Try
 
-/** REST API for the single-node KV store.
+/** REST API for the single-node KV store (node role).
   *
-  * Routes (defined in conf/routes using *key to allow '/' in key names):
-  *   GET   /kv/:key
-  *   PUT   /kv/:key
-  *   PATCH /kv/:key
+  * Implements KvHandler so it can be bound to @Named("kvHandler") by Module
+  * when kv.role = node, letting KvDispatcher delegate to it.
   *
   * ifVersion:
   *   Accepted as query param (?ifVersion=<long>) or If-Match header.
@@ -23,7 +21,15 @@ import scala.util.Try
   */
 @Singleton
 class KvController @Inject() (store: KvStore, cc: ControllerComponents)
-    extends AbstractController(cc) {
+    extends AbstractController(cc) with KvHandler {
+
+  /** Not part of the node's public API; a node process should never receive
+    * a bare GET /kv.  Routers talk to /internal/keys instead.
+    * Returning 501 here surfaces a misconfiguration quickly.
+    */
+  def listAll(): Action[AnyContent] = Action {
+    NotImplemented(Json.obj("error" -> "listAll is only available on a router process"))
+  }
 
   def get(key: String): Action[AnyContent] = Action {
     store.get(key) match {

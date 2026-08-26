@@ -1,6 +1,17 @@
 # *key captures everything including slashes, so keys may contain '/' without URL-encoding.
 # Query params: ?ifVersion=<long> (takes precedence over If-Match header)
+#
+# The same binary runs as either a storage node (kv.role = node) or a
+# dedicated router (kv.role = router).  Both expose the same external API
+# paths.  The Module selects the correct controller implementation at startup.
+#
+# /kv routes are handled by KvDispatcher, which delegates to either
+# KvController (node role) or RouterController (router role) based on config.
 
-GET     /kv/*key        controllers.KvController.get(key: String)
-PUT     /kv/*key        controllers.KvController.put(key: String)
-PATCH   /kv/*key        controllers.KvController.patch(key: String)
+GET     /kv                 controllers.KvDispatcher.listAll()
+GET     /kv/*key            controllers.KvDispatcher.get(key: String)
+PUT     /kv/*key            controllers.KvDispatcher.put(key: String)
+PATCH   /kv/*key            controllers.KvDispatcher.patch(key: String)
+
+# Node-side internal endpoint called only by the router (not part of public API).
+GET     /internal/keys      controllers.InternalController.keys()

@@ -1,17 +1,45 @@
+import cluster.{ModuloPartitioner, NodeRegistry, Partitioner}
 import com.google.inject.AbstractModule
+import com.google.inject.name.Names
+import controllers.{KvController, KvHandler, RouterController}
+import play.api.{Configuration, Environment}
 import store.{InMemoryKvStore, KvStore}
 
-/** Guice module for Part 1.
+/** Guice module.  Binds implementations based on kv.role config.
   *
-  * Binding is eager so that:
-  *   - construction failures surface at boot, not on the first request
-  *   - the map is allocated once, at a predictable time
+  * role = node   (default)
+  *   KvStore → InMemoryKvStore (eager singleton — one map per process)
+  *   KvHandler (@Named("kvHandler")) → KvController
   *
-  * The router process also loads this module (same build, role chosen by
-  * config), but allocating an empty map it never uses is harmless.
-  * If that bothers you, switch to a Module that checks kv.role before binding.
+  * role = router
+  *   KvStore is still bound (an empty map the router never uses; harmless)
+  *   Partitioner → ModuloPartitioner
+  *   NodeRegistry — bound as eager singleton so the config is validated at boot
+  *   KvHandler (@Named("kvHandler")) → RouterController
+  *
+  * WS (WSClient) and ControllerComponents are provided by Play's built-in
+  * modules; no extra binding is needed here.
   */
-class Module extends AbstractModule {
-  override def configure(): Unit =
+class Module(environment: Environment, configuration: Configuration)
+    extends AbstractModule {
+
+  override def configure(): Unit = {
+    // Always bind the store (router allocates an empty map it ignores, which is
+    // cheap and keeps the DI graph consistent for tests that reuse this module).
     bind(classOf[KvStore]).to(classOf[InMemoryKvStore]).asEagerSingleton()
+
+    val role = configuration.getOptional[String]("kv.role").getOrElse("node")
+
+    if (role == "router") {
+      bind(classOf[NodeRegistry]).asEagerSingleton()
+      bind(classOf[Partitioner]).to(classOf[ModuloPartitioner])
+      bind(classOf[KvHandler])
+        .annotatedWith(Names.named("kvHandler"))
+        .to(classOf[RouterController])
+    } else {
+      bind(classOf[KvHandler])
+        .annotatedWith(Names.named("kvHandler"))
+        .to(classOf[KvController])
+    }
+  }
 }
