@@ -6,14 +6,14 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 
 ## Endpoints
 
-| Method | Path | Description                                       |
-|--------|------|---------------------------------------------------|
-| `GET` | `/kv/:key` | Get key, value, and version for a key             |
-| `PUT` | `/kv/:key` | Create or replace a key's value                   |
-| `PATCH` | `/kv/:key` | Create or shallow-merge into a key's value        |
-| `GET` | `/kv` | (Router only) Stream all keys as NDJSON           |
+| Method | Path | Description                                      |
+|--------|------|--------------------------------------------------|
+| `GET` | `/kv/:key` | Get key, value, and version for a key            |
+| `PUT` | `/kv/:key` | Create or replace a key's value                  |
+| `PATCH` | `/kv/:key` | Create or shallow-merge into a key's value       |
+| `GET` | `/kv` | (Router only) Stream all keys as NDJSON          |
 | `GET` | `/internal/keys` | (Node only) Stream this node's keys as NDJSON; 404 on a router |
-| `GET` | `/docs` | Swagger UI (from `conf/routes` comments + `conf/swagger.yml`) |
+| `GET` | `/docs` | Swagger UI |
 | `GET` | `/assets/swagger.json` | Generated Swagger 2.0 spec |
 
 **Optimistic locking:** Supply `?ifVersion=<long>` (or `If-Match` header) on PUT/PATCH. Returns `409` on mismatch.
@@ -23,17 +23,18 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 Dedicated router strategy:
 - the client talks to one entry point, which is the router node
 - the router hashes the key and proxies to the owner node
-- internal endpoint to stream keys from each node (fails silently): `GET:/internal/keys`
+- internal endpoint to stream keys from each node: `GET:/internal/keys`
 - public endpoint on router to get aggregation of keys from all nodes: `GET:/kv`
+- key aggregation follows best-effort strategy, skips result from node with failure
 
 ```mermaid
 flowchart TB
-  subgraph topoA [Dedicated Router]
-    cA[Client] --> R[Router :7000]
-    R --> A1[Node1 :7001]
-    R --> A2[Node2 :7002]
-    R --> A3[Node3 :7003]
-  end
+    subgraph topoA [Dedicated Router]
+        cA[Client] --> R[Router :7000]
+        R --> A1[Node1 :7001]
+        R --> A2[Node2 :7002]
+        R --> A3[Node3 :7003]
+    end
 ```
 
 ## Class Structure
@@ -90,7 +91,7 @@ sbt run
 ```
 
 Swagger UI: http://localhost:9000/docs  
-Spec JSON: http://localhost:9000/assets/swagger.json  
+Spec JSON: http://localhost:9000/assets/swagger.json
 
 `sbt swagger` regenerates `target/swagger/swagger.json` without starting the server.
 
