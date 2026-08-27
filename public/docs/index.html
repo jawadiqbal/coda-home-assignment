@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>KV Store API</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/assets/lib/swagger-ui/swagger-ui.css"
+    />
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="/assets/lib/swagger-ui/swagger-ui-bundle.js"></script>
+    <script src="/assets/lib/swagger-ui/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.onload = function () {
+        window.ui = SwaggerUIBundle({
+          url: "/assets/swagger.json",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: "StandaloneLayout"
+        });
+      };
+    </script>
+  </body>
+</html>

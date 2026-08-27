@@ -2,6 +2,7 @@ package controllers
 
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
@@ -11,6 +12,47 @@ import play.api.test.Helpers._
   * InMemoryKvStore singleton — for every test.
   */
 class KvControllerSpec extends PlaySpec with GuiceOneAppPerTest {
+
+  // ---- GET /kv (no key) --------------------------------------------------
+
+  "GET /kv" should {
+    "return 501 on a node process (listAll is router-only)" in {
+      val result = route(app, FakeRequest(GET, "/kv")).value
+      status(result) mustBe NOT_IMPLEMENTED
+      (contentAsJson(result) \ "error").as[String] must include(
+        "router process"
+      )
+    }
+  }
+
+  "GET /internal/keys" should {
+    "stream keys as NDJSON on a node process" in {
+      status(
+        route(
+          app,
+          FakeRequest(PUT, "/kv/ik").withJsonBody(Json.obj("n" -> 1))
+        ).value
+      ) mustBe OK
+      implicit val mat = app.materializer
+      val result = route(app, FakeRequest(GET, "/internal/keys")).value
+      status(result) mustBe OK
+      contentType(result).getOrElse("") must include("application/x-ndjson")
+      contentAsString(result) must include("\"key\":\"ik\"")
+    }
+
+    "return 404 on a router process" in {
+      val routerApp =
+        new GuiceApplicationBuilder().configure("kv.role" -> "router").build()
+      running(routerApp) {
+        val result =
+          route(routerApp, FakeRequest(GET, "/internal/keys")).value
+        status(result) mustBe NOT_FOUND
+        (contentAsJson(result) \ "error").as[String] must include(
+          "storage node"
+        )
+      }
+    }
+  }
 
   // ---- GET ----------------------------------------------------------------
 

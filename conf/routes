@@ -1,6 +1,166 @@
 # *key captures everything including slashes, so keys may contain '/' without URL-encoding.
 # Query params: ?ifVersion=<long> (takes precedence over If-Match header)
+#
+# The same binary runs as either a storage node (kv.role = node) or a
+# dedicated router (kv.role = router).  Both expose the same external API
+# paths.  The Module selects the correct controller implementation at startup.
+#
+# /kv routes are handled by KvDispatcher, which delegates to either
+# KvController (node role) or RouterController (router role) based on config.
 
-GET     /kv/*key        controllers.KvController.get(key: String)
-PUT     /kv/*key        controllers.KvController.put(key: String)
-PATCH   /kv/*key        controllers.KvController.patch(key: String)
+###
+#  summary: List all keys as NDJSON
+#  description: |
+#    Router only. Fans out to each node's /internal/keys and streams the
+#    union as newline-delimited JSON. Unreachable nodes are skipped.
+#    A node process returns 501.
+#  tags:
+#    - KV
+#  produces:
+#    - application/x-ndjson
+#    - application/json
+#  responses:
+#    200:
+#      description: NDJSON stream; each line is a KeyNode
+#      schema:
+#        $ref: '#/definitions/KeyNode'
+#    501:
+#      description: Listing is not available on a storage node
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+###
+GET     /kv                 controllers.KvDispatcher.listAll()
+
+###
+#  summary: Get a key
+#  tags:
+#    - KV
+#  responses:
+#    200:
+#      description: Current value and version
+#      schema:
+#        $ref: '#/definitions/KvGetResponse'
+#    404:
+#      description: Key not found
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    503:
+#      description: Owner node unreachable (router only)
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+###
+GET     /kv/*key            controllers.KvDispatcher.get(key: String)
+
+###
+#  summary: Create or replace a key
+#  tags:
+#    - KV
+#  parameters:
+#    - name: ifVersion
+#      in: query
+#      type: integer
+#      format: int64
+#      required: false
+#      description: Expected current version; query param wins over If-Match
+#    - name: If-Match
+#      in: header
+#      type: string
+#      required: false
+#      description: Alternate expected version when ifVersion is omitted
+#    - name: body
+#      in: body
+#      required: true
+#      schema:
+#        $ref: '#/definitions/JsonValue'
+#  responses:
+#    200:
+#      description: Write accepted
+#      schema:
+#        $ref: '#/definitions/KvWriteResponse'
+#    400:
+#      description: ifVersion is not a long integer
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    409:
+#      description: Version mismatch, or ifVersion supplied but key is missing
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    503:
+#      description: Owner node unreachable (router only)
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+###
+PUT     /kv/*key            controllers.KvDispatcher.put(key: String)
+
+###
+#  summary: Create or shallow-merge a key
+#  description: |
+#    If the stored value and the body are both JSON objects, keys from the
+#    body overwrite matching keys and new keys are added. Otherwise the
+#    body replaces the stored value.
+#  tags:
+#    - KV
+#  parameters:
+#    - name: ifVersion
+#      in: query
+#      type: integer
+#      format: int64
+#      required: false
+#      description: Expected current version; query param wins over If-Match
+#    - name: If-Match
+#      in: header
+#      type: string
+#      required: false
+#      description: Alternate expected version when ifVersion is omitted
+#    - name: body
+#      in: body
+#      required: true
+#      schema:
+#        $ref: '#/definitions/JsonValue'
+#  responses:
+#    200:
+#      description: Write accepted
+#      schema:
+#        $ref: '#/definitions/KvWriteResponse'
+#    400:
+#      description: ifVersion is not a long integer
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    409:
+#      description: Version mismatch, or ifVersion supplied but key is missing
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    503:
+#      description: Owner node unreachable (router only)
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+###
+PATCH   /kv/*key            controllers.KvDispatcher.patch(key: String)
+
+###
+#  summary: Stream keys owned by this node
+#  description: |
+#    Storage node only. Returns NDJSON. A router process returns 404
+#    because it has an empty local store.
+#  tags:
+#    - Internal
+#  produces:
+#    - application/x-ndjson
+#    - application/json
+#  responses:
+#    200:
+#      description: NDJSON stream; each line is a KeyNode
+#      schema:
+#        $ref: '#/definitions/KeyNode'
+#    404:
+#      description: Not available on a router process
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+###
+GET     /internal/keys      controllers.InternalController.keys()
+
+### NoDocs ###
+GET     /docs               controllers.Assets.at(path="/public/docs", file="index.html")
+
+### NoDocs ###
+GET     /assets/*file       controllers.Assets.versioned(path="/public", file: Asset)
