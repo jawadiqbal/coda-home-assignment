@@ -1,5 +1,6 @@
 package controllers
 
+import http.KvHeaders
 import javax.inject.{Inject, Singleton}
 import models.WriteResult
 import play.api.libs.json._
@@ -14,9 +15,9 @@ import scala.util.Try
   * when kv.role = node, letting KvDispatcher delegate to it.
   *
   * ifVersion:
-  *   Accepted as query param (?ifVersion=<long>) or If-Match header.
-  *   Query param takes precedence when both are present.
-  *   A non-numeric value returns 400 immediately.
+  *   Accepted as query param (?ifVersion=<long>) or kv-if-version header
+  *   (name is case-insensitive). Query param takes precedence when both
+  *   are present. A non-numeric value returns 400 immediately.
   *   When supplied on a missing key, returns 409.
   */
 @Singleton
@@ -65,14 +66,14 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
     }
   }
 
-  // Parses ifVersion from query param (preferred) or If-Match header.
+  // Parses ifVersion from query param (preferred) or kv-if-version header.
   // Calls f with the parsed value, or returns 400 if the string is non-numeric.
   private def withIfVersion(
       request: Request[_]
   )(f: Option[Long] => Result): Result = {
     val raw = request
       .getQueryString("ifVersion")
-      .orElse(request.headers.get("If-Match"))
+      .orElse(KvHeaders.ifVersion(request.headers))
 
     raw match {
       case None =>

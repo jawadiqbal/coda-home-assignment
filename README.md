@@ -16,7 +16,7 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 | `GET` | `/docs` | Swagger UI |
 | `GET` | `/assets/swagger.json` | Generated Swagger 2.0 spec |
 
-**Optimistic locking:** Supply `?ifVersion=<long>` (or `If-Match` header) on PUT/PATCH. Returns `409` on mismatch.
+**Optimistic locking:** Supply `?ifVersion=<long>` (or `kv-if-version` header; name is case-insensitive) on PUT/PATCH. Returns `409` on mismatch.
 
 ## Multi-node cluster topology
 
@@ -54,11 +54,13 @@ app/
 │   ├── KvController.scala          # Node role: local store operations
 │   ├── RouterController.scala      # Router role: proxy to owner node
 │   └── InternalController.scala    # NDJSON streaming for /internal/keys
-└── cluster/
-    ├── NodeRef.scala               # Case class: id + url
-    ├── NodeRegistry.scala          # Reads nodes from config
-    ├── Partitioner.scala           # Trait + ModuloPartitioner (MurmurHash3 % N)
-    └── RemoteNodeClient.scala      # Thin WS-based HTTP proxy client
+├── cluster/
+│   ├── NodeRef.scala               # Case class: id + url
+│   ├── NodeRegistry.scala          # Reads nodes from config
+│   ├── Partitioner.scala           # Trait + ModuloPartitioner (MurmurHash3 % N)
+│   └── RemoteNodeClient.scala      # Thin WS-based HTTP proxy client
+└── http/
+    └── KvHeaders.scala             # kv-if-version header (case-insensitive)
 ```
 
 ## Tests

@@ -3,6 +3,7 @@ package controllers
 import akka.stream.scaladsl.{Framing, Source}
 import akka.util.ByteString
 import cluster.{NodeRegistry, Partitioner, RemoteNodeClient}
+import http.KvHeaders
 import javax.inject.{Inject, Singleton}
 import play.api.{Configuration, Logger}
 import play.api.libs.json.{JsValue, Json}
@@ -58,12 +59,12 @@ class RouterController @Inject() (
   def put(key: String): Action[JsValue] = Action.async(parse.json) { request =>
     val node = partitioner.ownerOf(key)
     val ifV = parseIfVersion(request.getQueryString("ifVersion"))
-    val ifMatch = request.headers.get("If-Match")
+    val ifVersionHeader = KvHeaders.ifVersion(request.headers)
     ifV match {
       case Left(err) => Future.successful(BadRequest(Json.obj("error" -> err)))
       case Right(parsed) =>
         client
-          .put(node, key, request.body, parsed, ifMatch)
+          .put(node, key, request.body, parsed, ifVersionHeader)
           .map(relayResponse)
           .recover(nodeDown)
     }
@@ -73,13 +74,13 @@ class RouterController @Inject() (
     request =>
       val node = partitioner.ownerOf(key)
       val ifV = parseIfVersion(request.getQueryString("ifVersion"))
-      val ifMatch = request.headers.get("If-Match")
+      val ifVersionHeader = KvHeaders.ifVersion(request.headers)
       ifV match {
         case Left(err) =>
           Future.successful(BadRequest(Json.obj("error" -> err)))
         case Right(parsed) =>
           client
-            .patch(node, key, request.body, parsed, ifMatch)
+            .patch(node, key, request.body, parsed, ifVersionHeader)
             .map(relayResponse)
             .recover(nodeDown)
       }

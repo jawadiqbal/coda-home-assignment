@@ -1,5 +1,6 @@
 package cluster
 
+import http.KvHeaders
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import play.api.libs.ws.{WSClient, WSResponse}
@@ -34,15 +35,17 @@ class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(implicit
       key: String,
       body: JsValue,
       ifVersion: Option[Long],
-      ifMatchHeader: Option[String]
+      ifVersionHeader: Option[String]
   ): Future[WSResponse] = {
     var req = ws.url(s"${node.url}/kv/$key").withRequestTimeout(timeout)
-    // Forward ifVersion as query param (preferred) or If-Match header
+    // Forward ifVersion as query param (preferred) or kv-if-version header
     ifVersion match {
       case Some(v) =>
         req = req.addQueryStringParameters("ifVersion" -> v.toString)
       case None =>
-        ifMatchHeader.foreach(h => req = req.addHttpHeaders("If-Match" -> h))
+        ifVersionHeader.foreach(h =>
+          req = req.addHttpHeaders(KvHeaders.IfVersion -> h)
+        )
     }
     req.withHttpHeaders("Content-Type" -> "application/json").put(body)
   }
@@ -52,14 +55,16 @@ class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(implicit
       key: String,
       body: JsValue,
       ifVersion: Option[Long],
-      ifMatchHeader: Option[String]
+      ifVersionHeader: Option[String]
   ): Future[WSResponse] = {
     var req = ws.url(s"${node.url}/kv/$key").withRequestTimeout(timeout)
     ifVersion match {
       case Some(v) =>
         req = req.addQueryStringParameters("ifVersion" -> v.toString)
       case None =>
-        ifMatchHeader.foreach(h => req = req.addHttpHeaders("If-Match" -> h))
+        ifVersionHeader.foreach(h =>
+          req = req.addHttpHeaders(KvHeaders.IfVersion -> h)
+        )
     }
     req.withHttpHeaders("Content-Type" -> "application/json").patch(body)
   }

@@ -123,21 +123,31 @@ class KvControllerSpec extends PlaySpec with GuiceOneAppPerTest {
       status(result) mustBe CONFLICT
     }
 
-    "accept ifVersion from If-Match header" in {
+    "accept ifVersion from kv-if-version header" in {
       route(app, FakeRequest(PUT, "/kv/h").withJsonBody(JsString("v1")))
       val req = FakeRequest(PUT, "/kv/h")
-        .withHeaders("If-Match" -> "1")
+        .withHeaders("kv-if-version" -> "1")
         .withJsonBody(JsString("v2"))
       val result = route(app, req).value
       status(result) mustBe OK
       (contentAsJson(result) \ "version").as[Long] mustBe 2L
     }
 
-    "give query param precedence over If-Match header" in {
+    "treat kv-if-version header name as case-insensitive" in {
+      route(app, FakeRequest(PUT, "/kv/ci").withJsonBody(JsString("v1")))
+      val req = FakeRequest(PUT, "/kv/ci")
+        .withHeaders("KV-If-Version" -> "1")
+        .withJsonBody(JsString("v2"))
+      val result = route(app, req).value
+      status(result) mustBe OK
+      (contentAsJson(result) \ "version").as[Long] mustBe 2L
+    }
+
+    "give query param precedence over kv-if-version header" in {
       route(app, FakeRequest(PUT, "/kv/p").withJsonBody(JsString("v1")))
       // query says version 1 (correct), header says 99 (wrong)
       val req = FakeRequest(PUT, "/kv/p?ifVersion=1")
-        .withHeaders("If-Match" -> "99")
+        .withHeaders("kv-if-version" -> "99")
         .withJsonBody(JsString("v2"))
       val result = route(app, req).value
       status(result) mustBe OK

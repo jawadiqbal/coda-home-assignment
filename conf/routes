@@ -1,5 +1,5 @@
 # *key captures everything including slashes, so keys may contain '/' without URL-encoding.
-# Query params: ?ifVersion=<long> (takes precedence over If-Match header)
+# Query params: ?ifVersion=<long> (takes precedence over kv-if-version header)
 #
 # The same binary runs as either a storage node (kv.role = node) or a
 # dedicated router (kv.role = router).  Both expose the same external API
@@ -61,12 +61,12 @@ GET     /kv/*key            controllers.KvDispatcher.get(key: String)
 #      type: integer
 #      format: int64
 #      required: false
-#      description: Expected current version; query param wins over If-Match
-#    - name: If-Match
+#      description: Expected current version; query param wins over kv-if-version
+#    - name: kv-if-version
 #      in: header
 #      type: string
 #      required: false
-#      description: Alternate expected version when ifVersion is omitted
+#      description: Alternate expected version when ifVersion is omitted; header name is case-insensitive
 #    - name: body
 #      in: body
 #      required: true
@@ -106,12 +106,12 @@ PUT     /kv/*key            controllers.KvDispatcher.put(key: String)
 #      type: integer
 #      format: int64
 #      required: false
-#      description: Expected current version; query param wins over If-Match
-#    - name: If-Match
+#      description: Expected current version; query param wins over kv-if-version
+#    - name: kv-if-version
 #      in: header
 #      type: string
 #      required: false
-#      description: Alternate expected version when ifVersion is omitted
+#      description: Alternate expected version when ifVersion is omitted; header name is case-insensitive
 #    - name: body
 #      in: body
 #      required: true

@@ -159,26 +159,39 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         (result.json \ "error").as[String] must include("invalid ifVersion")
       }
 
-    "forward If-Match header as ifVersion on PUT through the router" in
+    "forward kv-if-version header as ifVersion on PUT through the router" in
       withCluster(nodeCount = 1) { (routerUrl, _) =>
         val ws = wsClient
         await(ws.url(s"$routerUrl/kv/hkey").put(Json.obj("v" -> 1)))
         val result = await(
           ws.url(s"$routerUrl/kv/hkey")
-            .addHttpHeaders("If-Match" -> "1")
+            .addHttpHeaders("kv-if-version" -> "1")
             .put(Json.obj("v" -> 2))
         )
         result.status mustBe OK
         (result.json \ "version").as[Long] mustBe 2L
       }
 
-    "forward If-Match header as ifVersion on PATCH through the router" in
+    "forward kv-if-version header case-insensitively on PUT through the router" in
+      withCluster(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        await(ws.url(s"$routerUrl/kv/cikey").put(Json.obj("v" -> 1)))
+        val result = await(
+          ws.url(s"$routerUrl/kv/cikey")
+            .addHttpHeaders("KV-If-Version" -> "1")
+            .put(Json.obj("v" -> 2))
+        )
+        result.status mustBe OK
+        (result.json \ "version").as[Long] mustBe 2L
+      }
+
+    "forward kv-if-version header as ifVersion on PATCH through the router" in
       withCluster(nodeCount = 1) { (routerUrl, _) =>
         val ws = wsClient
         await(ws.url(s"$routerUrl/kv/matchkey").put(Json.obj("a" -> 1)))
         val result = await(
           ws.url(s"$routerUrl/kv/matchkey")
-            .addHttpHeaders("If-Match" -> "1")
+            .addHttpHeaders("kv-if-version" -> "1")
             .patch(Json.obj("b" -> 2))
         )
         result.status mustBe OK

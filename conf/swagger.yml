@@ -7,7 +7,8 @@ info:
     (`kv.role=node`) or a dedicated router (`kv.role=router`).
 
     Optimistic locking: send `ifVersion` as a query parameter (preferred)
-    or as an `If-Match` header on PUT/PATCH. A mismatch returns 409.
+    or as a `kv-if-version` header on PUT/PATCH. Header name is
+    case-insensitive. A mismatch returns 409.
 consumes:
   - application/json
 produces:
