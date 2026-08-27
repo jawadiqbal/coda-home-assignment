@@ -17,8 +17,8 @@ import scala.concurrent.duration.FiniteDuration
   * Future fails; the router maps this to 503.
   */
 @Singleton
-class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(
-    implicit ec: ExecutionContext
+class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(implicit
+    ec: ExecutionContext
 ) {
 
   private val timeout: FiniteDuration =

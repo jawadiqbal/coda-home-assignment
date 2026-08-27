@@ -180,7 +180,7 @@ class RouterController @Inject() (
       case Some(s) =>
         Try(s.toLong).toOption match {
           case Some(v) => Right(Some(v))
-          case None    => Left(s"invalid ifVersion '$s': must be a long integer")
+          case None => Left(s"invalid ifVersion '$s': must be a long integer")
         }
     }
 }

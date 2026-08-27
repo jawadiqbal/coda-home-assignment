@@ -238,7 +238,7 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
                 put.status match {
                   case CONFLICT => loop()
                   case OK       => ()
-                  case s        => fail(s"unexpected PUT status $s: ${put.body}")
+                  case s => fail(s"unexpected PUT status $s: ${put.body}")
                 }
               case s => fail(s"unexpected GET status $s: ${get.body}")
             }
