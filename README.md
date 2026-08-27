@@ -13,6 +13,8 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 | `PATCH` | `/kv/:key` | Create or shallow-merge into a key's value        |
 | `GET` | `/kv` | (Router only) Stream all keys as NDJSON           |
 | `GET` | `/internal/keys` | (Node only) Stream this node's keys as NDJSON; 404 on a router |
+| `GET` | `/docs` | Swagger UI (from `conf/routes` comments + `conf/swagger.yml`) |
+| `GET` | `/assets/swagger.json` | Generated Swagger 2.0 spec |
 
 **Optimistic locking:** Supply `?ifVersion=<long>` (or `If-Match` header) on PUT/PATCH. Returns `409` on mismatch.
 
@@ -87,6 +89,11 @@ Report: `target/scala-2.12/scoverage-report/index.html`
 sbt run
 ```
 
+Swagger UI: http://localhost:9000/docs  
+Spec JSON: http://localhost:9000/assets/swagger.json  
+
+`sbt swagger` regenerates `target/swagger/swagger.json` without starting the server.
+
 **Multi-node cluster with router (Part 2):**
 
 ```bash
@@ -119,3 +126,4 @@ configurations in `conf/application.conf` (override with `-D`):
 - sbt 1.8.3
 - ScalaTest + scalatestplus-play
 - Scoverage 2.0.12
+- play-swagger 1.6.1 + swagger-ui 5.10.3
