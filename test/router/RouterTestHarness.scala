@@ -80,6 +80,51 @@ trait RouterTestHarness { self: PlaySpec =>
     }
   }
 
+  /** One live storage node plus one dead URL in the router's ring.
+    * Used to prove GET /kv still returns keys from the live node.
+    */
+  def withLiveAndDeadNode(body: (String, String) => Unit): Unit = {
+    val livePort = freePort()
+    val deadPort = freePort()
+    val liveUrl = s"http://localhost:$livePort"
+    val deadUrl = s"http://localhost:$deadPort"
+    val nodes = Seq(
+      Map("id" -> "node-1", "url" -> liveUrl),
+      Map("id" -> "node-2", "url" -> deadUrl)
+    )
+
+    val nodeApp = new GuiceApplicationBuilder()
+      .configure(
+        "kv.role" -> "node",
+        "kv.nodeId" -> "node-1",
+        "kv.nodes" -> nodes,
+        "play.http.parser.maxMemoryBuffer" -> "10m"
+      )
+      .build()
+    val nodeServer = TestServer(livePort, nodeApp)
+    nodeServer.start()
+
+    val routerPort = freePort()
+    val routerApp: Application = new GuiceApplicationBuilder()
+      .configure(
+        "kv.role" -> "router",
+        "kv.nodeId" -> "router",
+        "kv.nodes" -> nodes,
+        "play.http.parser.maxMemoryBuffer" -> "10m"
+      )
+      .build()
+    val routerServer = TestServer(routerPort, routerApp)
+    routerServer.start()
+    _wsClient = routerApp.injector.instanceOf[WSClient]
+
+    try {
+      body(s"http://localhost:$routerPort", liveUrl)
+    } finally {
+      routerServer.stop()
+      nodeServer.stop()
+    }
+  }
+
   /** Starts a router pointing at nodeCount real nodes, then also gives back a
     * URL for an unreachable node that is NOT in the cluster — used to test 503.
     * The unreachable URL's port is reserved but never bound, so any connection
@@ -130,12 +175,14 @@ trait RouterTestHarness { self: PlaySpec =>
       while (running.get()) {
         try {
           val conn: Socket = ss.accept()
-          val out = new PrintWriter(conn.getOutputStream, true)
-          // Read and discard the request so the client doesn't get a broken pipe
           val in = conn.getInputStream
-          val buf = new Array[Byte](4096)
-          while (in.available() > 0) in.read(buf)
-          // Respond with non-JSON plain text
+          val headerBuf = new StringBuilder
+          while (!headerBuf.toString.contains("\r\n\r\n")) {
+            val b = in.read()
+            if (b < 0) throw new java.io.EOFException()
+            headerBuf.append(b.toChar)
+          }
+          val out = new PrintWriter(conn.getOutputStream, true)
           out.print(s"HTTP/1.1 $statusCode OK\r\n")
           out.print("Content-Type: text/plain\r\n")
           out.print(s"Content-Length: ${textBody.length}\r\n")

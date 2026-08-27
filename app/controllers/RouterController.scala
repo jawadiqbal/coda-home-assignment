@@ -4,6 +4,7 @@ import akka.stream.scaladsl.{Framing, Source}
 import akka.util.ByteString
 import cluster.{NodeRegistry, Partitioner, RemoteNodeClient}
 import javax.inject.{Inject, Singleton}
+import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.WSResponse
 import play.api.mvc._
@@ -41,6 +42,8 @@ class RouterController @Inject() (
 )(implicit ec: ExecutionContext)
     extends AbstractController(cc)
     with KvHandler {
+
+  private val logger = Logger(getClass)
 
   // ------------------------------------------------------------------ routing
 
@@ -100,6 +103,10 @@ class RouterController @Inject() (
   /** Re-frames the node's chunked response on newlines so that flatMapMerge
     * interleaves complete records rather than raw byte chunks.
     *
+    * A single node failure must not abort the merge: connection errors and
+    * non-200 responses become an empty substream so the remaining nodes still
+    * contribute keys.  The client sees HTTP 200 with a partial listing.
+    *
     * maximumFrameLength = 8 KB is generous for {"key":"...","node":"..."} lines.
     * allowTruncation = true so a node that closes without a trailing newline
     * does not abort the whole merged stream.
@@ -107,7 +114,23 @@ class RouterController @Inject() (
   private def streamKeysFrom(node: cluster.NodeRef): Source[ByteString, _] =
     Source
       .futureSource(
-        client.streamKeys(node).map(_.bodyAsSource)
+        client
+          .streamKeys(node)
+          .map { resp =>
+            if (resp.status == 200) resp.bodyAsSource
+            else {
+              logger.error(
+                s"node ${node.id} returned HTTP ${resp.status} for /internal/keys; skipping"
+              )
+              Source.empty[ByteString]
+            }
+          }
+          .recover { case NonFatal(ex) =>
+            logger.error(
+              s"node ${node.id} unreachable during key listing: ${ex.getMessage}"
+            )
+            Source.empty[ByteString]
+          }
       )
       .via(
         Framing.delimiter(
@@ -117,6 +140,15 @@ class RouterController @Inject() (
         )
       )
       .map(_ ++ ByteString("\n"))
+      .recoverWithRetries(
+        1,
+        { case NonFatal(ex) =>
+          logger.warn(
+            s"node ${node.id} stream failed during key listing: ${ex.getMessage}"
+          )
+          Source.empty[ByteString]
+        }
+      )
 
   /** Relays the node's HTTP status code and JSON body to the original client.
     * Non-JSON node responses (should not happen in practice) pass as plain text.

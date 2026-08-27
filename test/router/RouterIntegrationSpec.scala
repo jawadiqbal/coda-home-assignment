@@ -97,6 +97,36 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         keys.foreach { k => returnedKeys must contain(k) }
       }
 
+    "still return keys from live nodes when one node is unreachable" in
+      withLiveAndDeadNode { (routerUrl, _) =>
+        val ws = wsClient
+
+        val written = (0 until 20).flatMap { i =>
+          val k = s"partial-$i"
+          val put = await(ws.url(s"$routerUrl/kv/$k").put(Json.obj("i" -> k)))
+          if (put.status == OK) Some(k) else None
+        }
+        written must not be empty
+
+        val resp = await(ws.url(s"$routerUrl/kv").get())
+        resp.status mustBe OK
+        val lines = resp.body.split("\n").filter(_.trim.nonEmpty)
+        val returnedKeys = lines.map { line =>
+          (Json.parse(line) \ "key").as[String]
+        }.toSet
+
+        written.foreach { k => returnedKeys must contain(k) }
+      }
+
+    "skip a node that returns HTTP 500 from /internal/keys" in
+      withPlainTextNode(statusCode = 500, textBody = "<html>error</html>") {
+        routerUrl =>
+          val ws = wsClient
+          val resp = await(ws.url(s"$routerUrl/kv").get())
+          resp.status mustBe OK
+          resp.body.split("\n").filter(_.trim.nonEmpty) mustBe empty
+      }
+
     "return 400 for a non-numeric ifVersion on PUT through the router" in
       withCluster(nodeCount = 1) { (routerUrl, _) =>
         val ws = wsClient
