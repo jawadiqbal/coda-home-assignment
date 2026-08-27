@@ -1,24 +1,28 @@
 package cluster
 
 import javax.inject.{Inject, Singleton}
+import play.api.Configuration
 import play.api.libs.ws.{WSClient, WSResponse}
 import play.api.libs.json.JsValue
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration._
+import scala.concurrent.duration.FiniteDuration
 
 /** Thin HTTP client used by the router to forward requests to storage nodes.
   *
   * The router must preserve the status code and response body from the node
   * exactly — so callers receive a raw WSResponse and do the mapping themselves.
   *
-  * Timeout: 5 s per request.  On a timeout or connection failure the Future
-  * completes with a failed Future; the router maps this to 503.
+  * Timeout comes from kv.remoteTimeout.  On timeout or connection failure the
+  * Future fails; the router maps this to 503.
   */
 @Singleton
-class RemoteNodeClient @Inject() (ws: WSClient)(implicit ec: ExecutionContext) {
+class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(
+    implicit ec: ExecutionContext
+) {
 
-  private val timeout = 5.seconds
+  private val timeout: FiniteDuration =
+    config.get[FiniteDuration]("kv.remoteTimeout")
 
   def get(node: NodeRef, key: String): Future[WSResponse] =
     ws.url(s"${node.url}/kv/$key")

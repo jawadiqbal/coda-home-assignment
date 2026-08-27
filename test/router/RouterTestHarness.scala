@@ -46,8 +46,7 @@ trait RouterTestHarness { self: PlaySpec =>
             "kv.nodeId" -> nodeId,
             "kv.nodes" -> nodeUrls.zipWithIndex.map { case (url, j) =>
               Map("id" -> s"node-${j + 1}", "url" -> url)
-            },
-            "play.http.parser.maxMemoryBuffer" -> "10m"
+            }
           )
           .build()
         TestServer(port, app)
@@ -63,8 +62,7 @@ trait RouterTestHarness { self: PlaySpec =>
       .configure(
         "kv.role" -> "router",
         "kv.nodeId" -> "router",
-        "kv.nodes" -> routerNodes,
-        "play.http.parser.maxMemoryBuffer" -> "10m"
+        "kv.nodes" -> routerNodes
       )
       .build()
     val routerServer = TestServer(routerPort, routerApp)
@@ -97,8 +95,7 @@ trait RouterTestHarness { self: PlaySpec =>
       .configure(
         "kv.role" -> "node",
         "kv.nodeId" -> "node-1",
-        "kv.nodes" -> nodes,
-        "play.http.parser.maxMemoryBuffer" -> "10m"
+        "kv.nodes" -> nodes
       )
       .build()
     val nodeServer = TestServer(livePort, nodeApp)
@@ -109,8 +106,7 @@ trait RouterTestHarness { self: PlaySpec =>
       .configure(
         "kv.role" -> "router",
         "kv.nodeId" -> "router",
-        "kv.nodes" -> nodes,
-        "play.http.parser.maxMemoryBuffer" -> "10m"
+        "kv.nodes" -> nodes
       )
       .build()
     val routerServer = TestServer(routerPort, routerApp)
@@ -143,8 +139,7 @@ trait RouterTestHarness { self: PlaySpec =>
       .configure(
         "kv.role" -> "router",
         "kv.nodeId" -> "router",
-        "kv.nodes" -> Seq(Map("id" -> "dead-node", "url" -> deadUrl)),
-        "play.http.parser.maxMemoryBuffer" -> "10m"
+        "kv.nodes" -> Seq(Map("id" -> "dead-node", "url" -> deadUrl))
       )
       .build()
     val routerServer = TestServer(routerPort, routerApp)
@@ -207,8 +202,7 @@ trait RouterTestHarness { self: PlaySpec =>
         "kv.nodeId" -> "router",
         "kv.nodes" -> Seq(
           Map("id" -> "plain-node", "url" -> s"http://localhost:$port")
-        ),
-        "play.http.parser.maxMemoryBuffer" -> "10m"
+        )
       )
       .build()
     val routerServer = TestServer(routerPort, routerApp)

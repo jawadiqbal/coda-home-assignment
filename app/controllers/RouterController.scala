@@ -4,7 +4,7 @@ import akka.stream.scaladsl.{Framing, Source}
 import akka.util.ByteString
 import cluster.{NodeRegistry, Partitioner, RemoteNodeClient}
 import javax.inject.{Inject, Singleton}
-import play.api.Logger
+import play.api.{Configuration, Logger}
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.WSResponse
 import play.api.mvc._
@@ -38,12 +38,15 @@ class RouterController @Inject() (
     partitioner: Partitioner,
     registry: NodeRegistry,
     client: RemoteNodeClient,
+    config: Configuration,
     cc: ControllerComponents
 )(implicit ec: ExecutionContext)
     extends AbstractController(cc)
     with KvHandler {
 
   private val logger = Logger(getClass)
+  private val ndjsonMaxFrameLength: Int =
+    config.get[Int]("kv.ndjsonMaxFrameLength")
 
   // ------------------------------------------------------------------ routing
 
@@ -107,7 +110,7 @@ class RouterController @Inject() (
     * non-200 responses become an empty substream so the remaining nodes still
     * contribute keys.  The client sees HTTP 200 with a partial listing.
     *
-    * maximumFrameLength = 8 KB is generous for {"key":"...","node":"..."} lines.
+    * maximumFrameLength comes from kv.ndjsonMaxFrameLength (default 8 KB).
     * allowTruncation = true so a node that closes without a trailing newline
     * does not abort the whole merged stream.
     */
@@ -135,7 +138,7 @@ class RouterController @Inject() (
       .via(
         Framing.delimiter(
           ByteString("\n"),
-          maximumFrameLength = 8192,
+          maximumFrameLength = ndjsonMaxFrameLength,
           allowTruncation = true
         )
       )

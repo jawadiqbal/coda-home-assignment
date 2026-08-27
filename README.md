@@ -101,6 +101,16 @@ target/universal/stage/bin/kv-store -Dhttp.port=7003 -Dkv.role=node -Dkv.nodeId=
 target/universal/stage/bin/kv-store -Dhttp.port=7000 -Dkv.role=router -Dkv.nodeId=router
 ```
 
+configurations in `conf/application.conf` (override with `-D`):
+
+| Key | Default             | Meaning                                   |
+|-----|---------------------|-------------------------------------------|
+| `play.http.parser.maxMemoryBuffer` | `10m`               | JSON body size limit                      |
+| `play.server.akka.requestTimeout` | `10s`               | Server-side request timeout for key stream |
+| `kv.remoteTimeout` | `5s`                | Router → node timeout                   |
+| `kv.ndjsonMaxFrameLength` | `1024`              | Max bytes per NDJSON line from a node     |
+| `kv.nodes` | localhost:7001–7003 | Ordered partition ring                    |
+
 ## Stack
 
 - Scala 2.12.18
