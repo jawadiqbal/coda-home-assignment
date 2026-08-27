@@ -12,7 +12,7 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 | `PUT` | `/kv/:key` | Create or replace a key's value                   |
 | `PATCH` | `/kv/:key` | Create or shallow-merge into a key's value        |
 | `GET` | `/kv` | (Router only) Stream all keys as NDJSON           |
-| `GET` | `/internal/keys` | (Internal only) Stream this node's keys as NDJSON |
+| `GET` | `/internal/keys` | (Node only) Stream this node's keys as NDJSON; 404 on a router |
 
 **Optimistic locking:** Supply `?ifVersion=<long>` (or `If-Match` header) on PUT/PATCH. Returns `409` on mismatch.
 

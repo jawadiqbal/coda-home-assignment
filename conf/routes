@@ -13,5 +13,5 @@ GET     /kv/*key            controllers.KvDispatcher.get(key: String)
 PUT     /kv/*key            controllers.KvDispatcher.put(key: String)
 PATCH   /kv/*key            controllers.KvDispatcher.patch(key: String)
 
-# Node-side internal endpoint called only by the router (not part of public API).
+# Node-side internal endpoint called only by router, and router itself returns 404 (not part of public API).
 GET     /internal/keys      controllers.InternalController.keys()

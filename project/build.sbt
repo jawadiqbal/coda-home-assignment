@@ -3,4 +3,4 @@
 // This must live in project/build.sbt (meta-build level) — putting it in
 // the top-level build.sbt is too late, because this error fires before
 // build.sbt is loaded.
-evictionErrorLevel := Level.Warn
+ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % "always"

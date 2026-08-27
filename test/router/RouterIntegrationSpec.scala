@@ -118,6 +118,14 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         written.foreach { k => returnedKeys must contain(k) }
       }
 
+    "return 404 for GET /internal/keys on the router" in
+      withCluster(nodeCount = 1) { (routerUrl, _) =>
+        val ws = wsClient
+        val resp = await(ws.url(s"$routerUrl/internal/keys").get())
+        resp.status mustBe NOT_FOUND
+        (resp.json \ "error").as[String] must include("storage node")
+      }
+
     "skip a node that returns HTTP 500 from /internal/keys" in
       withPlainTextNode(statusCode = 500, textBody = "<html>error</html>") {
         routerUrl =>
