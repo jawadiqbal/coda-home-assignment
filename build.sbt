@@ -30,15 +30,17 @@ PlayKeys.devSettings += "play.http.parser.maxMemoryBuffer" -> "10m"
 // exceeds when it enumerates every jar on the classpath.  We patch the .bat
 // after every stage to remove the long enumerated line, keeping only the
 // wildcard (lib\*) that batScriptExtraDefines appends right after it.
-batScriptExtraDefines += "set \"APP_CLASSPATH=%APP_LIB_DIR%\\*\""
+batScriptExtraDefines += "set \"APP_CLASSPATH=%APP_LIB_DIR%\\..\\conf\\;%APP_LIB_DIR%\\*\""
 
 Universal / stage := {
   val result = (Universal / stage).value
   val bat = result / "bin" / "kv-store.bat"
   if (bat.exists()) {
     val content = IO.read(bat)
+    // Remove only the long auto-generated line (identified by containing .jar entries).
+    // The short wildcard line we appended does not contain .jar so it is preserved.
     val patched = content.replaceAll(
-      """(?m)^set "APP_CLASSPATH=%APP_LIB_DIR%\\\.\.\\conf\\;[^\r\n]*"(\r?\n)""",
+      """(?m)^set "APP_CLASSPATH=%APP_LIB_DIR%\\\.\.\\conf\\;[^\r\n]*\.jar[^\r\n]*"(\r?\n)""",
       ""
     )
     IO.write(bat, patched)
