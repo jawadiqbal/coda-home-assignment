@@ -48,7 +48,7 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
     withIfVersion(request) { ifVersion =>
       store.put(key, request.body, ifVersion) match {
         case WriteResult.Written(vv) =>
-          Ok(Json.obj("key" -> key, "version" -> vv.version))
+          Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
         case WriteResult.Conflict(current) =>
           conflictResponse(current)
       }
@@ -59,7 +59,7 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
     withIfVersion(request) { ifVersion =>
       store.patch(key, request.body, ifVersion) match {
         case WriteResult.Written(vv) =>
-          Ok(Json.obj("key" -> key, "version" -> vv.version))
+          Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
         case WriteResult.Conflict(current) =>
           conflictResponse(current)
       }
