@@ -155,12 +155,22 @@ class RouterController @Inject() (
       )
 
   /** Relays the node's HTTP status code and JSON body to the original client.
-    * Non-JSON node responses (should not happen in practice) pass as plain text.
+    *
+    * When the node returns a non-JSON body (e.g. Play's HTML error page on an
+    * unhandled exception) we do NOT forward that raw content.  Instead we
+    * return 502 with a sanitised JSON error so internal details never leak to
+    * the caller.
     */
-  private def relayResponse(r: WSResponse): Result = {
-    val body: JsValue = Try(r.json).getOrElse(Json.obj("raw" -> r.body))
-    Status(r.status)(body)
-  }
+  private def relayResponse(r: WSResponse): Result =
+    Try(r.json) match {
+      case scala.util.Success(json) =>
+        Status(r.status)(json)
+      case scala.util.Failure(_) =>
+        logger.error(
+          s"node returned non-JSON body (status=${r.status}); body suppressed"
+        )
+        BadGateway(Json.obj("error" -> "node returned an unexpected response"))
+    }
 
   /** Maps a failed Future (connection refused, timeout) to 503. */
   private val nodeDown: PartialFunction[Throwable, Result] = {

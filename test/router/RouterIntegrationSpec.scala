@@ -219,12 +219,16 @@ class RouterIntegrationSpec extends PlaySpec with RouterTestHarness {
         (put.json \ "error").as[String] mustBe "node unavailable"
       }
 
-    "wrap a non-JSON node response under a 'raw' key" in
+    "return 502 with a sanitised JSON error when node responds with non-JSON" in
       withPlainTextNode(statusCode = 200, textBody = "not json at all") {
         routerUrl =>
           val ws = wsClient
           val get = await(ws.url(s"$routerUrl/kv/any").get())
-          (get.json \ "raw").asOpt[String] mustBe defined
+          get.status mustBe BAD_GATEWAY
+          (get.json \ "error")
+            .as[String] mustBe "node returned an unexpected response"
+          // internal body must not be forwarded
+          (get.json \ "raw").asOpt[String] mustBe empty
       }
 
     "reach exactly 300 after 3×100 concurrent increments through the router" in

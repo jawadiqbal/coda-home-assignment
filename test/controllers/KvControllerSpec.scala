@@ -161,6 +161,88 @@ class KvControllerSpec extends PlaySpec with GuiceOneAppPerTest {
     }
   }
 
+  // ---- Key validation -----------------------------------------------------
+
+  "GET /kv/:key" should {
+    "return 400 for a key with a '.' segment" in {
+      val result = route(app, FakeRequest(GET, "/kv/foo/./bar")).value
+      status(result) mustBe BAD_REQUEST
+      val json = contentAsJson(result)
+      (json \ "error").as[String] must include("'.' and '..'")
+      (json \ "key").as[String] mustBe "foo/./bar"
+    }
+
+    "return 400 for a key with a '..' segment" in {
+      val result = route(app, FakeRequest(GET, "/kv/foo/../etc/passwd")).value
+      status(result) mustBe BAD_REQUEST
+      val json = contentAsJson(result)
+      (json \ "error").as[String] must include("'.' and '..'")
+    }
+
+    "return 400 for a key that is exactly '.'" in {
+      val result = route(app, FakeRequest(GET, "/kv/.")).value
+      status(result) mustBe BAD_REQUEST
+    }
+
+    "return 400 for a key that is exactly '..'" in {
+      val result = route(app, FakeRequest(GET, "/kv/..")).value
+      status(result) mustBe BAD_REQUEST
+    }
+
+    "allow a key whose segment merely starts with dots (e.g. '...foo')" in {
+      status(
+        route(
+          app,
+          FakeRequest(PUT, "/kv/...foo").withJsonBody(JsNumber(1))
+        ).value
+      ) mustBe OK
+      val result = route(app, FakeRequest(GET, "/kv/...foo")).value
+      status(result) mustBe OK
+    }
+  }
+
+  "PUT /kv/:key" should {
+    "return 400 for a key with a '.' segment" in {
+      val result =
+        route(
+          app,
+          FakeRequest(PUT, "/kv/a/./b").withJsonBody(JsNumber(1))
+        ).value
+      status(result) mustBe BAD_REQUEST
+      (contentAsJson(result) \ "error").as[String] must include("'.' and '..'")
+    }
+
+    "return 400 for a key with a '..' segment" in {
+      val result =
+        route(
+          app,
+          FakeRequest(PUT, "/kv/x/../y").withJsonBody(JsNumber(1))
+        ).value
+      status(result) mustBe BAD_REQUEST
+    }
+  }
+
+  "PATCH /kv/:key" should {
+    "return 400 for a key with a '.' segment" in {
+      val result =
+        route(
+          app,
+          FakeRequest(PATCH, "/kv/a/./b").withJsonBody(JsNumber(1))
+        ).value
+      status(result) mustBe BAD_REQUEST
+      (contentAsJson(result) \ "error").as[String] must include("'.' and '..'")
+    }
+
+    "return 400 for a key with a '..' segment" in {
+      val result =
+        route(
+          app,
+          FakeRequest(PATCH, "/kv/../secret").withJsonBody(JsNumber(1))
+        ).value
+      status(result) mustBe BAD_REQUEST
+    }
+  }
+
   // ---- PATCH --------------------------------------------------------------
 
   "PATCH /kv/:key" should {
@@ -183,12 +265,15 @@ class KvControllerSpec extends PlaySpec with GuiceOneAppPerTest {
       )
       val result = route(
         app,
-        FakeRequest(PATCH, "/kv/obj").withJsonBody(Json.obj("b" -> 99, "c" -> 3))
+        FakeRequest(PATCH, "/kv/obj").withJsonBody(
+          Json.obj("b" -> 99, "c" -> 3)
+        )
       ).value
       status(result) mustBe OK
       val json = contentAsJson(result)
       (json \ "key").as[String] mustBe "obj"
-      (json \ "value").as[JsObject] mustBe Json.obj("a" -> 1, "b" -> 99, "c" -> 3)
+      (json \ "value")
+        .as[JsObject] mustBe Json.obj("a" -> 1, "b" -> 99, "c" -> 3)
       (json \ "version").as[Long] mustBe 2L
     }
 
