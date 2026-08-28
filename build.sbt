@@ -25,3 +25,23 @@ libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % "always"
 
 // Raise the body-parser limit — the default 100 KB is too small for "arbitrary JSON"
 PlayKeys.devSettings += "play.http.parser.maxMemoryBuffer" -> "10m"
+
+// On Windows, cmd.exe has an 8191-char line limit that the generated .bat script
+// exceeds when it enumerates every jar on the classpath.  We patch the .bat
+// after every stage to remove the long enumerated line, keeping only the
+// wildcard (lib\*) that batScriptExtraDefines appends right after it.
+batScriptExtraDefines += "set \"APP_CLASSPATH=%APP_LIB_DIR%\\*\""
+
+Universal / stage := {
+  val result = (Universal / stage).value
+  val bat = result / "bin" / "kv-store.bat"
+  if (bat.exists()) {
+    val content = IO.read(bat)
+    val patched = content.replaceAll(
+      """(?m)^set "APP_CLASSPATH=%APP_LIB_DIR%\\\.\.\\conf\\;[^\r\n]*"(\r?\n)""",
+      ""
+    )
+    IO.write(bat, patched)
+  }
+  result
+}
