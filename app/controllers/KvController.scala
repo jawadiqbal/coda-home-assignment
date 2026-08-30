@@ -14,12 +14,6 @@ import scala.util.Try
   *
   * Implements KvHandler so it can be bound to @Named("kvHandler") by Module
   * when kv.role = node, letting KvDispatcher delegate to it.
-  *
-  * ifVersion:
-  *   Accepted as query param (?ifVersion=<long>) or kv-if-version header
-  *   (name is case-insensitive). Query param takes precedence when both
-  *   are present. A non-numeric value returns 400 immediately.
-  *   When supplied on a missing key, returns 409.
   */
 @Singleton
 class KvController @Inject() (store: KvStore, cc: ControllerComponents)
@@ -28,10 +22,6 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
 
   private val logger = Logger(getClass)
 
-  /** Not part of the node's public API; a node process should never receive
-    * a bare GET /kv.  Routers talk to /internal/keys instead.
-    * Returning 501 here surfaces a misconfiguration quickly.
-    */
   def listAll(): Action[AnyContent] = Action {
     NotImplemented(
       Json.obj("error" -> "listAll is only available on a router process")
@@ -53,7 +43,9 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
       store.put(key, request.body, ifVersion) match {
         case WriteResult.Written(vv) =>
           logger.info(s"PUT key=$key version=${vv.version}")
-          Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
+          Ok(
+            Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version)
+          )
         case WriteResult.Conflict(current) =>
           conflictResponse(current)
       }
@@ -65,7 +57,9 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
       store.patch(key, request.body, ifVersion) match {
         case WriteResult.Written(vv) =>
           logger.info(s"PATCH key=$key version=${vv.version}")
-          Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
+          Ok(
+            Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version)
+          )
         case WriteResult.Conflict(current) =>
           conflictResponse(current)
       }
@@ -85,7 +79,6 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
       case None =>
         f(None)
       case Some(s) =>
-        // Scala 2.12: toLongOption doesn't exist; use Try instead
         Try(s.toLong).toOption match {
           case Some(v) => f(Some(v))
           case None =>

@@ -5,8 +5,8 @@ import play.api.mvc.{Action, AnyContent}
 
 /** Common interface for the two role implementations.
   *
-  * KvController implements this for the node role (local store).
-  * RouterController implements this for the router role (proxy to nodes).
+  * KvController -> node role.
+  * RouterController -> router role.
   *
   * Module binds the correct implementation to @Named("kvHandler").
   */

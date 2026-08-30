@@ -13,13 +13,12 @@ import play.api.mvc.{
 }
 import store.KvStore
 
-/** Node-side internal endpoint, called only by the router (or tests).
+/** Node-side internal endpoint, called only by the router and tests.
   *
   * GET /internal/keys
   *   Streams all keys owned by this node as newline-delimited JSON.
   *   Each line: {"key":"<k>","node":"<nodeId>"}
-  *   Returns 404 when kv.role is router — the route is compiled into every
-  *   process, but a router has an empty local store and must not look like a node.
+  *   Returns 404 when kv.role is router
   *
   * The key iterator is weakly consistent (never throws under concurrent
   * modification, but not a point-in-time snapshot).

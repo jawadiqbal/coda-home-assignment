@@ -3,11 +3,7 @@ package store
 import models.{VersionedValue, WriteResult}
 import play.api.libs.json.JsValue
 
-/** Storage interface.  Keeping this as a trait (rather than coding directly
-  * against InMemoryKvStore) lets the router and tests inject a stub, and
-  * leaves the door open for a persistence-backed implementation without
-  * touching the controller.
-  */
+/** Storage interface. */
 trait KvStore {
 
   /** Returns the current value and version for key, or None if absent. */
@@ -27,8 +23,8 @@ trait KvStore {
     */
   def patch(key: String, delta: JsValue, ifVersion: Option[Long]): WriteResult
 
-  /** Weakly-consistent snapshot of current keys.  Safe under concurrent
-    * modification but not a point-in-time view.
+  /** Weakly-consistent snapshot of current keys. Safe under concurrent
+    * modifications.
     */
   def keys(): Iterator[String]
 }

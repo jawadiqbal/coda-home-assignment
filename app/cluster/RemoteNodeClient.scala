@@ -9,14 +9,7 @@ import play.api.libs.json.JsValue
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 
-/** Thin HTTP client used by the router to forward requests to storage nodes.
-  *
-  * The router must preserve the status code and response body from the node
-  * exactly — so callers receive a raw WSResponse and do the mapping themselves.
-  *
-  * Timeout comes from kv.remoteTimeout.  On timeout or connection failure the
-  * Future fails; the router maps this to 503.
-  */
+/** Thin HTTP client used by the router to forward requests to storage nodes. */
 @Singleton
 class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(implicit
     ec: ExecutionContext
@@ -70,7 +63,7 @@ class RemoteNodeClient @Inject() (ws: WSClient, config: Configuration)(implicit
   }
 
   /** Streams the NDJSON key list from a node's /internal/keys endpoint.
-    * Returns a streaming response; caller uses bodyAsSource.
+    * Returns a streaming response, caller uses bodyAsSource.
     */
   def streamKeys(node: NodeRef): Future[WSResponse] =
     ws.url(s"${node.url}/internal/keys")

@@ -28,10 +28,10 @@ import scala.util.control.NonFatal
   *   - A Future failure (connection refused, timeout) maps to 503.
   *   - The node's own error codes (404, 409, etc.) pass through as-is.
   *
-  * Correctness note — NDJSON framing:
-  *   flatMapMerge interleaves at element granularity.  WS bodyAsSource delivers
-  *   raw HTTP chunks, not whole lines, so we re-frame on "\n" inside
-  *   streamKeysFrom before merging.  Without this, chunks from different nodes
+  * NDJSON framing:
+  *   flatMapMerge for parallel collection of data from nodes. WS bodyAsSource delivers
+  *   raw HTTP chunks, so we re-frame on "\n" inside
+  *   streamKeysFrom before merging. Without this, chunks from different nodes
   *   could be concatenated mid-line, producing corrupt JSON.
   */
 @Singleton
@@ -49,11 +49,12 @@ class RouterController @Inject() (
   private val ndjsonMaxFrameLength: Int =
     config.get[Int]("kv.ndjsonMaxFrameLength")
 
-  // ------------------------------------------------------------------ routing
-
   def get(key: String): Action[AnyContent] = Action.async {
     val node = partitioner.ownerOf(key)
-    client.get(node, key).map(relayResponse(node.id, key, "GET")).recover(nodeDown(node.id, key, "GET"))
+    client
+      .get(node, key)
+      .map(relayResponse(node.id, key, "GET"))
+      .recover(nodeDown(node.id, key, "GET"))
   }
 
   def put(key: String): Action[JsValue] = Action.async(parse.json) { request =>
@@ -86,14 +87,6 @@ class RouterController @Inject() (
       }
   }
 
-  // ------------------------------------------------------------------ fan-out
-
-  /** GET /kv — no key segment.
-    *
-    * Fans out to all nodes' /internal/keys endpoints concurrently and
-    * re-streams the merged NDJSON to the client.  The degree of parallelism
-    * equals the cluster size so all nodes are queried simultaneously.
-    */
   def listAll(): Action[AnyContent] = Action {
     val parallelism = registry.nodes.size.max(1)
     val merged = Source(registry.nodes.toList)
@@ -102,17 +95,14 @@ class RouterController @Inject() (
     Ok.chunked(merged).as("application/x-ndjson")
   }
 
-  // ------------------------------------------------------------------ helpers
-
   /** Re-frames the node's chunked response on newlines so that flatMapMerge
-    * interleaves complete records rather than raw byte chunks.
+    * collects complete records rather than raw byte chunks.
     *
-    * A single node failure must not abort the merge: connection errors and
-    * non-200 responses become an empty substream so the remaining nodes still
-    * contribute keys.  The client sees HTTP 200 with a partial listing.
+    * Merging streams follow best-effort strategy, so it doesn't fail if one node/stream fails.
+    * Connection errors and non-200 responses become an empty substream
+    * so the remaining nodes still contribute keys.
     *
-    * maximumFrameLength comes from kv.ndjsonMaxFrameLength (default 8 KB).
-    * allowTruncation = true so a node that closes without a trailing newline
+    * allowTruncation = true, so a node that closes without a trailing newline
     * does not abort the whole merged stream.
     */
   private def streamKeysFrom(node: cluster.NodeRef): Source[ByteString, _] =
@@ -154,20 +144,17 @@ class RouterController @Inject() (
         }
       )
 
-  /** Relays the node's HTTP status code and JSON body to the original client.
-    *
-    * When the node returns a non-JSON body (e.g. Play's HTML error page on an
-    * unhandled exception) we do NOT forward that raw content.  Instead we
-    * return 502 with a sanitised JSON error so internal details never leak to
-    * the caller.
-    */
-  private def relayResponse(nodeId: String, key: String, method: String)(r: WSResponse): Result =
+  private def relayResponse(nodeId: String, key: String, method: String)(
+      r: WSResponse
+  ): Result =
     Try(r.json) match {
       case scala.util.Success(json) =>
         if (r.status == 404)
           logger.warn(s"$method key=$key not found on node=$nodeId")
         else if (r.status >= 200 && r.status < 300)
-          logger.info(s"$method key=$key routed to node=$nodeId status=${r.status}")
+          logger.info(
+            s"$method key=$key routed to node=$nodeId status=${r.status}"
+          )
         Status(r.status)(json)
       case scala.util.Failure(_) =>
         logger.error(
@@ -176,18 +163,17 @@ class RouterController @Inject() (
         BadGateway(Json.obj("error" -> "node returned an unexpected response"))
     }
 
-  /** Maps a failed Future (connection refused, timeout) to 503. */
-  private def nodeDown(nodeId: String, key: String, method: String): PartialFunction[Throwable, Result] = {
-    case NonFatal(ex) =>
-      logger.error(s"$method key=$key node=$nodeId unreachable: ${ex.getMessage}")
-      ServiceUnavailable(
-        Json.obj("error" -> "node unavailable")
-      )
+  private def nodeDown(
+      nodeId: String,
+      key: String,
+      method: String
+  ): PartialFunction[Throwable, Result] = { case NonFatal(ex) =>
+    logger.error(s"$method key=$key node=$nodeId unreachable: ${ex.getMessage}")
+    ServiceUnavailable(
+      Json.obj("error" -> "node unavailable")
+    )
   }
 
-  /** Parses the ifVersion string.
-    * Returns Right(None) when absent, Right(Some(v)) when valid, Left(msg) on bad input.
-    */
   private def parseIfVersion(
       raw: Option[String]
   ): Either[String, Option[Long]] =

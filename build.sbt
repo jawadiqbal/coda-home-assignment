@@ -23,5 +23,5 @@ swaggerPrettyJson := true
 // "always" allows that mix without silencing every other eviction.
 libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % "always"
 
-// Raise the body-parser limit — the default 100 KB is too small for "arbitrary JSON"
+// Raise the body-parser limit — the default 100 KB is too small for arbitrary JSON
 PlayKeys.devSettings += "play.http.parser.maxMemoryBuffer" -> "10m"

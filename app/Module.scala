@@ -6,19 +6,7 @@ import play.api.{Configuration, Environment}
 import store.{InMemoryKvStore, KvStore}
 
 /** Guice module.  Binds implementations based on kv.role config.
-  *
-  * role = node   (default)
-  *   KvStore → InMemoryKvStore (eager singleton — one map per process)
-  *   KvHandler (@Named("kvHandler")) → KvController
-  *
-  * role = router
-  *   KvStore is still bound (an empty map the router never uses; harmless)
-  *   Partitioner → ModuloPartitioner
-  *   NodeRegistry — bound as eager singleton so the config is validated at boot
-  *   KvHandler (@Named("kvHandler")) → RouterController
-  *
-  * WS (WSClient) and ControllerComponents are provided by Play's built-in
-  * modules; no extra binding is needed here.
+  * WS (WSClient) and ControllerComponents are provided by Play's built-in modules
   */
 class Module(environment: Environment, configuration: Configuration)
     extends AbstractModule {

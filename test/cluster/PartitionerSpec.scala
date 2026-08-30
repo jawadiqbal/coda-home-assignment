@@ -8,7 +8,7 @@ import org.scalatest.wordspec.AnyWordSpec
   * Test A — Determinism: same key always maps to same node (critical for
   *   correctness; if this ever changes a GET after a PUT would hit the wrong node).
   *
-  * Test B — Distribution: 10 000 synthetic keys land within a reasonable band
+  * Test B — Distribution: 10000 synthetic keys land within a reasonable band
   *   across 3 nodes.  We use ±30% tolerance (expect ~3333 per node, accept
   *   2333–4333).  This would catch a degenerate hash function but is not a
   *   strict uniformity proof.
@@ -35,7 +35,7 @@ class PartitionerSpec extends AnyWordSpec with Matchers {
       }
     }
 
-    "distribute 10 000 keys roughly evenly across 3 nodes" in {
+    "distribute 10000 keys roughly evenly across 3 nodes" in {
       val partitioner = new ModuloPartitioner(threeNodeRegistry())
       val keys = (0 until 10000).map(i => s"key-$i")
       val counts = keys.groupBy(partitioner.ownerOf(_).id).mapValues(_.size)

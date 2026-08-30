@@ -23,8 +23,6 @@ import java.util.concurrent.atomic.AtomicBoolean
   *
   * The WSClient is taken from the router application, so all HTTP calls go
   * through it and exercise the real WS stack.
-  *
-  * This trait is mixed into RouterIntegrationSpec; it is not a spec itself.
   */
 trait RouterTestHarness { self: PlaySpec =>
 

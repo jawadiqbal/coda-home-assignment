@@ -11,20 +11,17 @@ import scala.collection.JavaConverters._
 
 /** Single-node in-memory KV store.
   *
-  * Concurrency model: ConcurrentHashMap.compute holds the bin lock for the
-  * duration of the remapping function, serialising all operations on the same
+  * ConcurrentHashMap.compute holds the bin lock for the
+  * duration of the remapping function, serializing all operations on the same
   * key while allowing operations on different keys to proceed in parallel.
   * The entire read-check-write of the ifVersion guard therefore happens
   * atomically with no separate get-then-put.
   *
-  * Constraints on the compute lambda (both satisfied here):
+  * Constraints on the compute lambda which are satisfied here:
   *   - must complete quickly and must not block
-  *   - must not re-enter the map (would deadlock on the same bin)
+  *   - must not re-enter the map to avoid deadlock
   *
-  * The @Singleton annotation means Guice creates one instance per injector,
-  * which in production is one instance per process — the correct shard-per-node
-  * model for Part 2.  Do not make this a Scala object; that would give a single
-  * JVM-wide map, breaking the in-process multi-node test harness.
+  * Singleton annotation ensures one instance per node.
   */
 @Singleton
 class InMemoryKvStore extends KvStore {
@@ -54,18 +51,17 @@ class InMemoryKvStore extends KvStore {
   override def keys(): Iterator[String] =
     map.keySet().iterator().asScala
 
-  // Shallow merge: if both sides are JsObjects, right-side fields win.
+  // Shallow merge: if both sides are JsObjects, right-side fields win
   // In all other combinations (one side is an array, number, string, etc.)
-  // the delta replaces the existing value outright.
-  // Play's JsObject.++ is shallow by design; deepMerge would be wrong here.
+  // the delta replaces the existing value outright
+  // Play's JsObject.++ is shallow by design
   private def merge(existing: JsValue, delta: JsValue): JsValue =
     (existing, delta) match {
       case (e: JsObject, d: JsObject) => e ++ d
       case _                          => delta
     }
 
-  // Single entry point for all writes.  The lambda runs inside the bin lock,
-  // so it must be short and non-blocking.  An AtomicReference carries the
+  // Single entry point for all writes applying a non-blocking lambda. An AtomicReference carries the
   // result out of the lambda since compute's return value is the new map entry.
   private def mutate(
       key: String,

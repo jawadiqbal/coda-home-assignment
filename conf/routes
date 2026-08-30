@@ -1,13 +1,3 @@
-# *key captures everything including slashes, so keys may contain '/' without URL-encoding.
-# Query params: ?ifVersion=<long> (takes precedence over kv-if-version header)
-#
-# The same binary runs as either a storage node (kv.role = node) or a
-# dedicated router (kv.role = router).  Both expose the same external API
-# paths.  The Module selects the correct controller implementation at startup.
-#
-# /kv routes are handled by KvDispatcher, which delegates to either
-# KvController (node role) or RouterController (router role) based on config.
-
 ###
 #  summary: List all keys as NDJSON
 #  description: |

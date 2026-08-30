@@ -6,7 +6,7 @@ import play.api.test.Helpers._
 
 /** End-to-end integration tests for the router topology.
   *
-  * Test strategy (from the plan):
+  * Test strategy:
   *   Each test spins up N node applications + 1 router application in-process,
   *   using ephemeral ports.  All apps run inside the same sbt test JVM so there
   *   is no Docker dependency.

@@ -4,22 +4,13 @@ import javax.inject.{Inject, Named, Singleton}
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 
-/** Routes /kv requests to either the local KvController (node role) or the
-  * RouterController (router role).
-  *
-  * The concrete handler is bound in Module based on kv.role config.  Callers
-  * never know which role they are talking to — this is the standard Play
-  * delegating-controller pattern.
-  *
-  * Naming the binding with @Named("kvHandler") avoids ambiguity: both
-  * KvController and RouterController extend AbstractController which also
-  * injects ControllerComponents, so plain type-based binding would cause a
-  * double-binding of ControllerComponents.
+/** Front-facing route interface that dispatches requests to concrete handlers
   *
   * Key validation:
   *   Keys that contain a "." or ".." path segment are rejected with 400.
-  *   A segment is defined by splitting on "/".  This prevents path-traversal
-  *   payloads regardless of how downstream storage or routing uses the key.
+  *   A segment is defined by splitting on "/". This prevents path-traversal
+  *   payloads regardless of how downstream storage or routing uses the key,
+  *    thus prevents path compression attacks.
   */
 @Singleton
 class KvDispatcher @Inject() (
@@ -38,15 +29,6 @@ class KvDispatcher @Inject() (
 
   def listAll(): Action[AnyContent] = handler.listAll()
 
-  // ---------------------------------------------------------------------------
-
-  /** Returns the inner action unchanged when the key is valid; otherwise
-    * returns a constant 400 action without touching the handler.
-    *
-    * Splitting on "/" covers both "." (single-dot segment) and ".." without
-    * needing a regex or URL-decoding step — Akka HTTP already decoded the
-    * path before Play received it.
-    */
   private def validated[A](key: String)(action: => Action[A]): Action[A] = {
     val segments = key.split("/", -1)
     val hasDotSegment = segments.exists(s => s == "." || s == "..")
