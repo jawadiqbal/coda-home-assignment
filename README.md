@@ -116,6 +116,22 @@ configurations in `conf/application.conf` (override with `-D`):
 | `kv.ndjsonMaxFrameLength` | `1024`              | Max bytes per NDJSON line from a node     |
 | `kv.nodes` | localhost:7001–7003 | Ordered partition ring                    |
 
+## Manual concurrency test
+
+**Optimistic-locking counter** (`scripts/counter_increment.sh`)
+
+Seeds a counter at 0, then spawns 3 clients each performing 100 successful increments using a read → increment → `PUT ?ifVersion=<v>` retry loop. On a 409 conflict the client re-reads and retries. Expected final state: `value=300, version=301`.
+
+```bash
+chmod +x scripts/counter_increment.sh
+
+# defaults: host=http://localhost:9000  key=counter
+bash scripts/counter_increment.sh
+
+# custom host / key
+bash scripts/counter_increment.sh http://localhost:9000 counter
+```
+
 ## Stack
 
 - Scala 2.12.18
