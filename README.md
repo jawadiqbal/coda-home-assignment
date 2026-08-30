@@ -43,6 +43,10 @@ Dedicated router strategy:
 - internal endpoint to stream keys from each node: `GET:/internal/keys`
 - public endpoint on router to get aggregation of keys from all nodes: `GET:/kv`
 - key aggregation follows best-effort strategy, skips result from node with failure
+- advantage over peer-forwarding: round trip time is predictable and consistent, p2p can have O(N) worst case read/write
+- advantage over client-routing: any change in cluster topology doesn't require updating client, while client driven routing will require every client to be aware and up-to-date with cluster configuration
+
+Basic topology: client → router → nodes
 
 ```mermaid
 flowchart TB
@@ -51,6 +55,53 @@ flowchart TB
         R --> A1[Node1 :7001]
         R --> A2[Node2 :7002]
         R --> A3[Node3 :7003]
+    end
+```
+
+Scaled topology: clients → reverse proxy → routers sharing the node cluster
+
+```mermaid
+flowchart TB
+    subgraph topoB [Horizontal scaling with Reverse Proxy]
+        C1[Client 1] --> RP[Reverse Proxy]
+        C2[Client 2] --> RP
+        C3[Client 3] --> RP
+
+        subgraph routers [Routers]
+            R1[Router 1]
+            R2[Router 2]
+            R3[Router 3]
+        end
+
+        RP --> R1
+        RP --> R2
+        RP --> R3
+
+        subgraph nodes [Nodes]
+            N1[Node 1]
+            N2[Node 2]
+            N3[Node 3]
+            N4[Node 4]
+            N5[Node 5]
+        end
+
+        R1 --> N1
+        R1 --> N2
+        R1 --> N3
+        R1 --> N4
+        R1 --> N5
+
+        R2 --> N1
+        R2 --> N2
+        R2 --> N3
+        R2 --> N4
+        R2 --> N5
+
+        R3 --> N1
+        R3 --> N2
+        R3 --> N3
+        R3 --> N4
+        R3 --> N5
     end
 ```
 
@@ -148,6 +199,20 @@ bash scripts/counter_increment.sh
 # custom host / key
 bash scripts/counter_increment.sh http://localhost:9000 counter
 ```
+
+## Decisions and trade-offs
+- Choice of framework was made based on developer's familiarity of the stack, Scala 2.12 with Play 2.8 is a proven stable stack
+- `ConcurrentHashMap` chose because it provides an in memory single process store that forces operations on the same key to be sequential while different keys can be parallel
+- `EagerSingleton` used since the empty map is a lightweight initialization, while Object could risk sharing across nodes on the same jvm
+- Access control for `/internal/*` path is supposed to be handled by a reverse proxy, hence not considered in the scope for this application
+- No dedicated encoding/decoding to allow key to be as arbitrary as possible, however Play's Akka HTTP server will still apply some filtering, which have been described in `Endpoints` section
+- Containerization (i.e. docker) have been omitted to focus on the core design, can be part of a roadmap for production deployment
+- No replication or eviction strategy implemented to stay true to the key-value store definition rather than become a cache
+- Similarly hot key handling has been omitted as well to avoid challenged with storing and determining frequencies in an unbound space, which is more of a cache problem
+- `/kv` on router succeeds even with failed/unreachable node, preferring best-effort over fast-failure as such a request might be used for clientside caching
+- `/kv` collects key streams from nodes in parallel, this is under the assumption we will have a small cluster with nodes with sizable capacity - however if we have a massive cluster of small capacity low latency nodes, a sequence of parallel batches would make more sense
+- `AtomicReference` was used to capture write result as it is a final object with mutable content, so it is possible to set inside a lambda, which would not be possible with a mutable local variable
+- OpenAPI specs were also prepared for an optional client generation as part of the roadmap
 
 ## Stack
 
