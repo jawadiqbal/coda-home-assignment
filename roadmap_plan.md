@@ -157,4 +157,4 @@ Listing down the effort in sequence including observability and sdk.
 | Hot key handling      | Single key at high concurrency, while p99 on *other* keys stays within SLO    |
 | Memory is bounded     | Sustained write load above the ceiling for hours with stable GC and RAM usage |
 | Eviction correctness  | Hit ratio above target under a realistic access pattern                       |
-| Consisten key-hashing | Add a node under live traffic causing ~1/(N+1) hit-ratio drop                 |
+| Consistent key-hashing | Add a node under live traffic causing ~1/(N+1) hit-ratio drop                 |
