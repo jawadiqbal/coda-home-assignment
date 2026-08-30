@@ -16,7 +16,7 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 | `GET` | `/docs` | Swagger UI |
 | `GET` | `/assets/swagger.json` | Generated Swagger 2.0 spec |
 
-**Optimistic locking:** Supply `?ifVersion=<long>` (or `kv-if-version` header; name is case-insensitive) on PUT/PATCH. Returns `409` on mismatch.
+**Optimistic locking:** Supply `?ifVersion=<long>` or `kv-if-version` header on PUT/PATCH. Returns `409` on mismatch.
 
 ## Multi-node cluster topology
 
