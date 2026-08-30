@@ -53,7 +53,7 @@ class RouterController @Inject() (
 
   def get(key: String): Action[AnyContent] = Action.async {
     val node = partitioner.ownerOf(key)
-    client.get(node, key).map(relayResponse).recover(nodeDown)
+    client.get(node, key).map(relayResponse(node.id, key, "GET")).recover(nodeDown)
   }
 
   def put(key: String): Action[JsValue] = Action.async(parse.json) { request =>
@@ -65,7 +65,7 @@ class RouterController @Inject() (
       case Right(parsed) =>
         client
           .put(node, key, request.body, parsed, ifVersionHeader)
-          .map(relayResponse)
+          .map(relayResponse(node.id, key, "PUT"))
           .recover(nodeDown)
     }
   }
@@ -81,7 +81,7 @@ class RouterController @Inject() (
         case Right(parsed) =>
           client
             .patch(node, key, request.body, parsed, ifVersionHeader)
-            .map(relayResponse)
+            .map(relayResponse(node.id, key, "PATCH"))
             .recover(nodeDown)
       }
   }
@@ -161,9 +161,13 @@ class RouterController @Inject() (
     * return 502 with a sanitised JSON error so internal details never leak to
     * the caller.
     */
-  private def relayResponse(r: WSResponse): Result =
+  private def relayResponse(nodeId: String, key: String, method: String)(r: WSResponse): Result =
     Try(r.json) match {
       case scala.util.Success(json) =>
+        if (r.status == 404)
+          logger.warn(s"$method key=$key not found on node=$nodeId")
+        else if (r.status >= 200 && r.status < 300)
+          logger.info(s"$method key=$key routed to node=$nodeId status=${r.status}")
         Status(r.status)(json)
       case scala.util.Failure(_) =>
         logger.error(

@@ -3,6 +3,7 @@ package controllers
 import http.KvHeaders
 import javax.inject.{Inject, Singleton}
 import models.WriteResult
+import play.api.Logger
 import play.api.libs.json._
 import play.api.mvc._
 import store.KvStore
@@ -25,6 +26,8 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
     extends AbstractController(cc)
     with KvHandler {
 
+  private val logger = Logger(getClass)
+
   /** Not part of the node's public API; a node process should never receive
     * a bare GET /kv.  Routers talk to /internal/keys instead.
     * Returning 501 here surfaces a misconfiguration quickly.
@@ -38,6 +41,7 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
   def get(key: String): Action[AnyContent] = Action {
     store.get(key) match {
       case Some(vv) =>
+        logger.info(s"GET key=$key version=${vv.version}")
         Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
       case None =>
         NotFound(Json.obj("error" -> "key not found", "key" -> key))
@@ -48,6 +52,7 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
     withIfVersion(request) { ifVersion =>
       store.put(key, request.body, ifVersion) match {
         case WriteResult.Written(vv) =>
+          logger.info(s"PUT key=$key version=${vv.version}")
           Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
         case WriteResult.Conflict(current) =>
           conflictResponse(current)
@@ -59,6 +64,7 @@ class KvController @Inject() (store: KvStore, cc: ControllerComponents)
     withIfVersion(request) { ifVersion =>
       store.patch(key, request.body, ifVersion) match {
         case WriteResult.Written(vv) =>
+          logger.info(s"PATCH key=$key version=${vv.version}")
           Ok(Json.obj("key" -> key, "value" -> vv.value, "version" -> vv.version))
         case WriteResult.Conflict(current) =>
           conflictResponse(current)
