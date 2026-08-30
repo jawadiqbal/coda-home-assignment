@@ -30,6 +30,10 @@ GET     /kv                 controllers.KvDispatcher.listAll()
 #      description: Current value and version
 #      schema:
 #        $ref: '#/definitions/KvGetResponse'
+#    400:
+#      description: Key contains a '.' or '..' path segment
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
 #    404:
 #      description: Key not found
 #      schema:
@@ -68,11 +72,15 @@ GET     /kv/*key            controllers.KvDispatcher.get(key: String)
 #      schema:
 #        $ref: '#/definitions/KvWriteResponse'
 #    400:
-#      description: ifVersion is not a long integer
+#      description: Key contains a '.' or '..' path segment, or ifVersion is not a long integer
 #      schema:
 #        $ref: '#/definitions/ErrorResponse'
 #    409:
 #      description: Version mismatch, or ifVersion supplied but key is missing
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    502:
+#      description: Node returned a non-JSON body (router only)
 #      schema:
 #        $ref: '#/definitions/ErrorResponse'
 #    503:
@@ -113,11 +121,15 @@ PUT     /kv/*key            controllers.KvDispatcher.put(key: String)
 #      schema:
 #        $ref: '#/definitions/KvWriteResponse'
 #    400:
-#      description: ifVersion is not a long integer
+#      description: Key contains a '.' or '..' path segment, or ifVersion is not a long integer
 #      schema:
 #        $ref: '#/definitions/ErrorResponse'
 #    409:
 #      description: Version mismatch, or ifVersion supplied but key is missing
+#      schema:
+#        $ref: '#/definitions/ErrorResponse'
+#    502:
+#      description: Node returned a non-JSON body (router only)
 #      schema:
 #        $ref: '#/definitions/ErrorResponse'
 #    503:
@@ -131,7 +143,7 @@ PATCH   /kv/*key            controllers.KvDispatcher.patch(key: String)
 #  summary: Stream keys owned by this node
 #  description: |
 #    Storage node only. Returns NDJSON. A router process returns 404
-#    because it has an empty local store.
+#    because this endpoint is not available on the router role.
 #  tags:
 #    - Internal
 #  produces:
