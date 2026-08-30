@@ -72,7 +72,7 @@ Key features of the `KeyAdmissionControl` component:
 - holds a `Array[Semaphore](K)` indexed by `floorMod(key.hashCode, K)`
 - each position thus hold a cap for a stripe of keys
 - semaphore has a starting value (i.e. 50) then decreases when operation starts and increases when ends
-- initiate retry if semaphore value reaches 0, limit to N retries
+- initiate retry after a bounded wait-time if semaphore value reaches 0, limit to N retries
 
 Since this admission control increases node latency, Router will also introduce a `CircuitBreaker` to cut off slow nodes from slowing down routed queries
 
