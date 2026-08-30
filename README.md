@@ -99,26 +99,11 @@ Spec JSON: http://localhost:9000/assets/swagger.json
 
 **Multi-node cluster with router (Part 2):**
 
-Run `sbt stage` once, then open four terminals (one per process).
-
-macOS / Linux:
 ```bash
-sbt stage
-
-target/universal/stage/bin/kv-store -Dhttp.port=7001 -Dkv.role=node   -Dkv.nodeId=node-1
-target/universal/stage/bin/kv-store -Dhttp.port=7002 -Dkv.role=node   -Dkv.nodeId=node-2
-target/universal/stage/bin/kv-store -Dhttp.port=7003 -Dkv.role=node   -Dkv.nodeId=node-3
-target/universal/stage/bin/kv-store -Dhttp.port=7000 -Dkv.role=router -Dkv.nodeId=router
-```
-
-Windows (PowerShell) — each flag must be quoted to prevent the shell splitting on `=`:
-```powershell
-sbt stage
-
-target\universal\stage\bin\kv-store.bat "-Dhttp.port=7001" "-Dkv.role=node"   "-Dkv.nodeId=node-1"
-target\universal\stage\bin\kv-store.bat "-Dhttp.port=7002" "-Dkv.role=node"   "-Dkv.nodeId=node-2"
-target\universal\stage\bin\kv-store.bat "-Dhttp.port=7003" "-Dkv.role=node"   "-Dkv.nodeId=node-3"
-target\universal\stage\bin\kv-store.bat "-Dhttp.port=7000" "-Dkv.role=router" "-Dkv.nodeId=router"
+sbt -Dhttp.port=7001 -Dkv.role=node   -Dkv.nodeId=node-1 run
+sbt -Dhttp.port=7002 -Dkv.role=node   -Dkv.nodeId=node-2 run
+sbt -Dhttp.port=7003 -Dkv.role=node   -Dkv.nodeId=node-3 run
+sbt -Dhttp.port=7000 -Dkv.role=router -Dkv.nodeId=router run
 ```
 
 configurations in `conf/application.conf` (override with `-D`):
