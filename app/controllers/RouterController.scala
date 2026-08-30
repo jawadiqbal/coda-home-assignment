@@ -53,7 +53,7 @@ class RouterController @Inject() (
 
   def get(key: String): Action[AnyContent] = Action.async {
     val node = partitioner.ownerOf(key)
-    client.get(node, key).map(relayResponse(node.id, key, "GET")).recover(nodeDown)
+    client.get(node, key).map(relayResponse(node.id, key, "GET")).recover(nodeDown(node.id, key, "GET"))
   }
 
   def put(key: String): Action[JsValue] = Action.async(parse.json) { request =>
@@ -66,7 +66,7 @@ class RouterController @Inject() (
         client
           .put(node, key, request.body, parsed, ifVersionHeader)
           .map(relayResponse(node.id, key, "PUT"))
-          .recover(nodeDown)
+          .recover(nodeDown(node.id, key, "PUT"))
     }
   }
 
@@ -82,7 +82,7 @@ class RouterController @Inject() (
           client
             .patch(node, key, request.body, parsed, ifVersionHeader)
             .map(relayResponse(node.id, key, "PATCH"))
-            .recover(nodeDown)
+            .recover(nodeDown(node.id, key, "PATCH"))
       }
   }
 
@@ -177,10 +177,11 @@ class RouterController @Inject() (
     }
 
   /** Maps a failed Future (connection refused, timeout) to 503. */
-  private val nodeDown: PartialFunction[Throwable, Result] = {
+  private def nodeDown(nodeId: String, key: String, method: String): PartialFunction[Throwable, Result] = {
     case NonFatal(ex) =>
+      logger.error(s"$method key=$key node=$nodeId unreachable: ${ex.getMessage}")
       ServiceUnavailable(
-        Json.obj("error" -> "node unavailable", "detail" -> ex.getMessage)
+        Json.obj("error" -> "node unavailable")
       )
   }
 
