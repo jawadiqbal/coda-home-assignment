@@ -18,6 +18,23 @@ The same binary runs as either a **storage node** or a **dedicated router**, sel
 
 **Optimistic locking:** Supply `?ifVersion=<long>` or `kv-if-version` header on PUT/PATCH. Returns `409` on mismatch.
 
+**Key path binding:** The `:key` route segment uses `*key` (`.+`), so slashes in a key are supported. Akka HTTP rejects malformed paths before Play sees them.
+
+| request target | result | key bound                                 |
+|----------------|--------|-------------------------------------------|
+| `/kv/user:42` | 200    | `user:42`                                 |
+| `/kv/a/b` | 200    | `a/b`                                     |
+| `/kv/a%2Fb` | 200    | `a%2Fb`                                   |
+| `/kv/a%7Bb%7D` | 200    | `a%7Bb%7D`                                |
+| `/kv/%E6%97%A5` | 200    | `%E6%97%A5`                               |
+| `/kv/../internal/keys` | 400    | rejected: path compression risk           |
+| `/kv/a#b` | 400    | `a` : # suffix discarded                  |
+| `/kv/a{b}` | 400    | rejected                                  |
+| `/kv/a\|b` | 400    | rejected                                  |
+| `/kv/100%` | 400    | rejected: expected HEXDIG                 |
+| `/kv/a%zz` | 400    | rejected: expected HEXDIG                 |
+| `/kv/` | 404    | no route matches — `*key` is `.+`, not `.*` |
+
 ## Multi-node cluster topology
 
 Dedicated router strategy:
@@ -116,7 +133,7 @@ configurations in `conf/application.conf` (override with `-D`):
 | `kv.ndjsonMaxFrameLength` | `1024`              | Max bytes per NDJSON line from a node     |
 | `kv.nodes` | localhost:7001–7003 | Ordered partition ring                    |
 
-## Manual concurrency test
+## Testing concurrency
 
 **Optimistic-locking counter** (`scripts/counter_increment.sh`)
 
