@@ -4,6 +4,8 @@ A distributed in-memory key-value store built with **Scala 2.12**, **Play 2.8**,
 
 The same binary runs as either a **storage node** or a **dedicated router**, selected at startup via `kv.role` config.
 
+For the part 3 roadmap plan, please see [here](roadmap_plan.md).
+
 ## Endpoints
 
 | Method | Path | Description                                      |
