@@ -97,7 +97,17 @@ This part is explained in the next section, we implement it using TTL and sample
 
 **LRU** can be implemented by sampling similar to Redis `allkeys-lru`, which approximates the last use tick from a global clock counter, and oldest entry among random K picks is considered least-recently-used.
 
-And finally, a sweeper method which runs periodically identifies and removes expired and least-recently-used entries from storage
+And finally, a sweeper method which runs periodically identifies and removes expired and least-recently-used entries from storage.
+
+New entry model for the store:
+```scala
+final case class VersionedValue(
+  value: JsValue,
+  version: Long,
+  expiredAt: DateTime, // sweeper deletes entries with expiredAt < currentTime
+  lastUsed: Int // populated from a global incremented value - sweeper deletes entry with the smallest lastUsed among K random entries
+)
+```
 
 ### 4. Consistent hashing for key ownership
 
