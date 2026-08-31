@@ -35,7 +35,7 @@ For the part 3 roadmap plan, please see [here](roadmap_plan.md).
 | `/kv/a\|b` | 400    | rejected                                  |
 | `/kv/100%` | 400    | rejected: expected HEXDIG                 |
 | `/kv/a%zz` | 400    | rejected: expected HEXDIG                 |
-| `/kv/` | 404    | no route matches — `*key` is `.+`, not `.*` |
+| `/kv/` | 404    | no route matches - `*key` is `.+`, not `.*` |
 
 ## Multi-node cluster topology
 
