@@ -1,0 +1,68 @@
+---
+swagger: "2.0"
+info:
+  title: KV Store API
+  description: |
+    In-memory key-value store. The same binary runs as a storage node
+    (`kv.role=node`) or a dedicated router (`kv.role=router`).
+
+    Optimistic locking: send `ifVersion` as a query parameter (preferred)
+    or as a `kv-if-version` header on PUT/PATCH. Header name is
+    case-insensitive. A mismatch returns 409.
+consumes:
+  - application/json
+produces:
+  - application/json
+tags:
+  - name: KV
+    description: Public key-value operations
+  - name: Internal
+    description: Node-to-router listing (not a client API)
+definitions:
+  KvGetResponse:
+    type: object
+    required: [key, value, version]
+    properties:
+      key:
+        type: string
+      value:
+        description: Arbitrary JSON value stored for the key
+      version:
+        type: integer
+        format: int64
+        description: Monotonic version; starts at 1
+  KvWriteResponse:
+    type: object
+    required: [key, value, version]
+    properties:
+      key:
+        type: string
+      value:
+        description: Arbitrary JSON value stored for the key
+      version:
+        type: integer
+        format: int64
+  ErrorResponse:
+    type: object
+    required: [error]
+    properties:
+      error:
+        type: string
+      key:
+        type: string
+      currentVersion:
+        type: integer
+        format: int64
+      detail:
+        type: string
+  KeyNode:
+    type: object
+    required: [key, node]
+    properties:
+      key:
+        type: string
+      node:
+        type: string
+        description: Owning node id (for example node-1)
+  JsonValue:
+    description: Arbitrary JSON (object, array, string, number, boolean, or null)

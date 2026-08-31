@@ -1,0 +1,23 @@
+target/
+.bsp/
+.metals/
+.idea/
+.idea_modules/
+*.class
+*.log
+*.iml
+.DS_Store
+
+# sbt specific
+.cache/
+.history/
+.lib/
+dist/*
+project/target/
+project/project/
+project/.history
+project/metals.sbt
+
+# Play specific
+logs/
+RUNNING_PID
