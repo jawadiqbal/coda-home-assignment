@@ -110,7 +110,7 @@ override def ownerOf(key: String): NodeRef = {
 }
 ```
 
-This means adding a node to the cluster with N nodes will result in N/(N+1) keys having a different hash output, on a large cluster which can easily mean above 90% of the keys. Thus, with the current hashing a full restart is required of the cluster after any change in topology.
+This means adding a node to the cluster with N nodes will result in N/(N+1) percent of keys having a different hash output, on a large cluster which can easily mean above 90% of the keys. Thus, with the current hashing a full restart is required of the cluster after any change in topology.
 
 Proposed improvement:
 map keys and nodes into the same space, which is a ring of all 32-bit integers, wrapping at 2³²−1. Nodes are
@@ -129,7 +129,7 @@ flowchart LR
 
 This will also introduce virtual nodes which reduce variance and enable binary search on a node's space in the ring, resulting in faster key lookup.
 
-Overall, the consistent hashing mechanic can reduce key loss to only maximum of 1/N in case a node is added to the cluster, thus eliminating the need to of restart and loss of all existing data.
+Overall, the consistent hashing mechanic can reduce key loss to only maximum of 1/N percent in case a node is added to the cluster, thus eliminating the need to of restart and loss of all existing data.
 
 ## Trade-offs
 - Maturing as cache will result in evictions, which changes the idea that a client can keep aggregating over a value indefinitely using if-version
