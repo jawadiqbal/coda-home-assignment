@@ -140,13 +140,13 @@ Overall, the consistent hashing mechanic can reduce key loss to only maximum of 
 
 Listing down the effort in sequence including observability and sdk.
 
-- **Phase-0** : general tech debt
+- **Phase-0** : General tech debt
   - Add Prometheus support with Grafana dashboards and alerts
   - Publish generated client library based on openapi specs
-- **Phase-1** : improving availability and optimize performance-under-load
+- **Phase-1** : Improving availability and optimize performance-under-load
   - Router circuit breaker + consistent hashing
   - Node hot key handling
-- **Phase-2** : memory management and eviction
+- **Phase-2** : Memory management and eviction
   - Bounded memory capacity based rejection
   - Per key stripe cap and sampled-LRU
 
