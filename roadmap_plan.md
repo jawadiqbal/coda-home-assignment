@@ -129,7 +129,7 @@ flowchart LR
 
 This will also introduce virtual nodes which reduce variance and enable binary search on a node's space in the ring, resulting in faster key lookup.
 
-Overall, the consistent hashing mechanic can reduce key loss to only maximum of 1/N percent in case a node is added to the cluster, thus eliminating the need to of restart and loss of all existing data.
+Overall, the consistent hashing mechanic can reduce key loss to only maximum of 1/(N+1) percent in case a node is added to the cluster, thus eliminating the need to of restart and loss of all existing data.
 
 ## Trade-offs
 - Maturing as cache will result in evictions, which changes the idea that a client can keep aggregating over a value indefinitely using if-version
@@ -154,7 +154,7 @@ Listing down the effort in sequence including observability and sdk.
 
 | Goal                  | Measure                                                                       |
 |-----------------------|-------------------------------------------------------------------------------|
-| Hot key handling      | Single key at high concurrency, while p99 on *other* keys stays within SLO    |
+| Hot key handling      | Single key at high concurrency, while p99 stays within SLO    |
 | Memory is bounded     | Sustained write load above the ceiling for hours with stable GC and RAM usage |
 | Eviction correctness  | Hit ratio above target under a realistic access pattern                       |
 | Consistent key-hashing | Add a node under live traffic causing ~1/(N+1) hit-ratio drop                 |
