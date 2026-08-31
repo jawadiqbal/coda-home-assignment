@@ -57,10 +57,10 @@ flowchart TB
 
 ### 1. Hot-key protection with admission control + circuit breaker
 
-`ConcurrentHashMap.compute` holds the bin lock for the duration of the lambda. That is what gives Part 1
-its per-key atomicity, and it is also the hot-key failure mode: every concurrent request for one key
+`ConcurrentHashMap.compute` holds the bin lock for the duration of the lambda. While it provides atomicity,
+it is also why we have a hot-key failure scenario, where every concurrent request for one key
 blocks a thread inside `compute`. The lambda is short, but the queue in front of it is unbounded, so a
-thousand writers to one key park a thousand threads and starve every *other* key on that node.
+thousand writers to one key park a thousand threads and starve every other key on that node.
 
 ```
 request → [acquire per-key permit, bounded wait] → compute() → response
@@ -113,13 +113,13 @@ override def ownerOf(key: String): NodeRef = {
 This means adding a node to the cluster with N nodes will result in N/(N+1) percent of keys having a different hash output, on a large cluster which can easily mean above 90% of the keys. Thus, with the current hashing a full restart is required of the cluster after any change in topology.
 
 Proposed improvement:
-map keys and nodes into the same space, which is a ring of all 32-bit integers, wrapping at 2³²−1. Nodes are
+map keys and nodes into the same space, which is a ring of all 32-bit integers, wrapping at 2³²-1. Nodes are
 placed by hashing their identity, keys by hashing the key, and a key is owned by the first node clockwise
 from its position.
 
 ```mermaid
 flowchart LR
-  subgraph ring ["Hash ring — 0 → 2³²−1, wrapping"]
+  subgraph ring ["Hash ring - 0 → 2³²-1, wrapping"]
     direction LR
     K1["hash(user:42)"] -->|clockwise| V1["node-2 vnode 87"]
     K2["hash(order:7)"] -->|clockwise| V2["node-3 vnode 141"]
