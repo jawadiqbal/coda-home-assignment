@@ -12,7 +12,7 @@ As part of this roadmap we will propose solutions to the following challenges wh
 
 Additionally, we want to introduce the following:
 - Observability
-- Stable client contract using openapi specs
+- Stable client using openapi specs
 ---
 
 ## Architecture
